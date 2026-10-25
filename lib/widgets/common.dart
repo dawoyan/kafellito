@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models.dart';
 import '../screens/tile_edit_screen.dart';
 import '../store.dart';
+import '../i18n.dart';
 
 final Map<String, Uint8List> _bytesCache = {};
 
@@ -37,8 +38,8 @@ class TileSwatch extends StatelessWidget {
       child: t == null
           ? Icon(Icons.block, size: size * 0.6, color: Colors.black38)
           : bytes == null
-              ? null
-              : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+          ? null
+          : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
     );
   }
 }
@@ -51,7 +52,13 @@ class TilePicker extends StatelessWidget {
   final bool allowNone;
   final String label;
 
-  const TilePicker({super.key, required this.value, required this.onChanged, this.allowNone = true, this.label = 'Tile'});
+  const TilePicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.allowNone = true,
+    this.label = 'Tile',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,31 +72,33 @@ class TilePicker extends StatelessWidget {
             initialValue: v,
             key: ValueKey('tp-$v-${store.tiles.length}'),
             isExpanded: true,
-            decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+            decoration: InputDecoration(labelText: tr(label), border: OutlineInputBorder(), isDense: true),
             items: [
               if (allowNone)
-                const DropdownMenuItem<String?>(
+                DropdownMenuItem<String?>(
                   value: null,
-                  child: Row(children: [TileSwatch(null, size: 22), SizedBox(width: 8), Text('No tiles')]),
+                  child: Row(children: [TileSwatch(null, size: 22), SizedBox(width: 8), Text(tr('No tiles'))]),
                 ),
               for (final t in store.tiles)
                 DropdownMenuItem<String?>(
                   value: t.id,
-                  child: Row(children: [
-                    TileSwatch(t, size: 22),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(t.label, overflow: TextOverflow.ellipsis)),
-                  ]),
+                  child: Row(
+                    children: [
+                      TileSwatch(t, size: 22),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(t.label, overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
                 ),
             ],
             onChanged: onChanged,
           ),
         ),
         IconButton(
-          tooltip: 'New tile',
-          icon: const Icon(Icons.add_photo_alternate_outlined),
+          tooltip: tr('New tile'),
+          icon: Icon(Icons.add_photo_alternate_outlined),
           onPressed: () async {
-            final t = await Navigator.of(context).push<Tile>(MaterialPageRoute(builder: (_) => const TileEditScreen()));
+            final t = await Navigator.of(context).push<Tile>(MaterialPageRoute(builder: (_) => TileEditScreen()));
             if (t != null) onChanged(t.id);
           },
         ),
@@ -105,8 +114,15 @@ class NumberField extends StatelessWidget {
   final bool autofocus;
   final bool signed;
   final ValueChanged<String>? onSubmitted;
-  const NumberField(this.controller, this.label,
-      {super.key, this.suffix = 'cm', this.autofocus = false, this.signed = false, this.onSubmitted});
+  const NumberField(
+    this.controller,
+    this.label, {
+    super.key,
+    this.suffix = 'cm',
+    this.autofocus = false,
+    this.signed = false,
+    this.onSubmitted,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +132,12 @@ class NumberField extends StatelessWidget {
       onSubmitted: onSubmitted,
       keyboardType: TextInputType.numberWithOptions(decimal: true, signed: signed),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(signed ? r'[-0-9.,]' : r'[0-9.,]'))],
-      decoration: InputDecoration(labelText: label, suffixText: suffix, border: const OutlineInputBorder(), isDense: true),
+      decoration: InputDecoration(
+        labelText: label,
+        suffixText: tr(suffix),
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
       onTap: () => controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length),
     );
   }
@@ -126,15 +147,15 @@ double? parseNum(String s) => double.tryParse(s.trim().replaceAll(',', '.'));
 
 TextEditingController numCtrl(double v) => TextEditingController(text: fmtNum((v * 10).roundToDouble() / 10));
 
-Future<bool> confirm(BuildContext context, String title, String message, {String ok = 'Delete'}) async {
+Future<bool> confirm(BuildContext context, String title, String message, {String? ok}) async {
   final r = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(ok)),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(ok ?? tr('Delete'))),
       ],
     ),
   );

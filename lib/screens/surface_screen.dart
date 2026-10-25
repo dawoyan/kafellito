@@ -11,6 +11,7 @@ import '../surfaces.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/surface_paint.dart';
+import '../i18n.dart';
 
 enum SurfaceTool { select, polygon, rect }
 
@@ -281,14 +282,14 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setState) => AlertDialog(
-          title: Text(isWall ? 'Tiles for the whole wall' : 'Tiles for the whole floor'),
+          title: Text(isWall ? tr('Tiles for the whole wall') : tr('Tiles for the whole floor')),
           content: SizedBox(
             width: 360,
             child: TilePicker(value: tile, onChanged: (v) => setState(() => tile = v)),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Save'))),
           ],
         ),
       ),
@@ -418,15 +419,15 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
     final title = isWall
-        ? 'Wall ${_wall! + 1} · ${fmtNum(p.wallLength(_wall!).roundToDouble())} × ${fmtNum(p.walls[_wall!].height)} cm'
-        : 'Floor';
+        ? '${tr('Wall {n}', {'n': _wall! + 1})} · ${fmtNum(p.wallLength(_wall!).roundToDouble())} × ${fmtNum(p.walls[_wall!].height)} ${tr('cm')}'
+        : tr('Floor');
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
           if (isWall) ...[
             IconButton(
-              tooltip: 'Previous wall',
+              tooltip: tr('Previous wall'),
               icon: const Icon(Icons.chevron_left),
               onPressed: () => setState(() {
                 _wall = (_wall! - 1 + p.edgeCount) % p.edgeCount;
@@ -436,7 +437,7 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
               }),
             ),
             IconButton(
-              tooltip: 'Next wall',
+              tooltip: tr('Next wall'),
               icon: const Icon(Icons.chevron_right),
               onPressed: () => setState(() {
                 _wall = (_wall! + 1) % p.edgeCount;
@@ -446,55 +447,63 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
               }),
             ),
           ],
-          IconButton(tooltip: 'Whole surface tile', icon: const Icon(Icons.format_color_fill), onPressed: _editBase),
+          IconButton(
+            tooltip: tr('Whole surface tile'),
+            icon: const Icon(Icons.format_color_fill),
+            onPressed: _editBase,
+          ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: LayoutBuilder(builder: (context, cons) {
-              _size = cons.biggest;
-              if (!_fitted) {
-                _fitted = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
-              }
-              return Stack(children: [
-                Listener(
-                  onPointerSignal: (e) {
-                    if (e is PointerScrollEvent) {
-                      final q = (e.localPosition - _pan) / _scale;
-                      setState(() {
-                        _scale = (_scale * (e.scrollDelta.dy > 0 ? 0.9 : 1.1)).clamp(0.05, 30.0);
-                        _pan = e.localPosition - q * _scale;
-                      });
-                    }
-                  },
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapUp: _onTapUp,
-                    onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
-                    onDoubleTap: _onDoubleTap,
-                    onScaleStart: (d) {
-                      if (_tool == SurfaceTool.rect) _rectStart = _snap(toSurf(d.localFocalPoint));
-                      _onScaleStart(d);
-                    },
-                    onScaleUpdate: _onScaleUpdate,
-                    onScaleEnd: _onScaleEnd,
-                    child: CustomPaint(
-                      size: _size,
-                      painter: _SurfacePainter(
-                        state: this,
-                        store: store,
-                        model: model,
-                        fixtures: _wallFixtures(),
-                        floorFixtures: isWall ? const [] : p.fixtures,
+            child: LayoutBuilder(
+              builder: (context, cons) {
+                _size = cons.biggest;
+                if (!_fitted) {
+                  _fitted = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
+                }
+                return Stack(
+                  children: [
+                    Listener(
+                      onPointerSignal: (e) {
+                        if (e is PointerScrollEvent) {
+                          final q = (e.localPosition - _pan) / _scale;
+                          setState(() {
+                            _scale = (_scale * (e.scrollDelta.dy > 0 ? 0.9 : 1.1)).clamp(0.05, 30.0);
+                            _pan = e.localPosition - q * _scale;
+                          });
+                        }
+                      },
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: _onTapUp,
+                        onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
+                        onDoubleTap: _onDoubleTap,
+                        onScaleStart: (d) {
+                          if (_tool == SurfaceTool.rect) _rectStart = _snap(toSurf(d.localFocalPoint));
+                          _onScaleStart(d);
+                        },
+                        onScaleUpdate: _onScaleUpdate,
+                        onScaleEnd: _onScaleEnd,
+                        child: CustomPaint(
+                          size: _size,
+                          painter: _SurfacePainter(
+                            state: this,
+                            store: store,
+                            model: model,
+                            fixtures: _wallFixtures(),
+                            floorFixtures: isWall ? const [] : p.fixtures,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                Positioned(left: 12, right: 12, top: 8, child: _hint()),
-              ]);
-            }),
+                    Positioned(left: 12, right: 12, top: 8, child: _hint()),
+                  ],
+                );
+              },
+            ),
           ),
           _toolbar(),
         ],
@@ -504,11 +513,12 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
 
   Widget _hint() {
     final text = switch (_tool) {
-      SurfaceTool.polygon => _draft.length < 3
-          ? 'Tap to place the corners of the area.'
-          : 'Tap the first corner to finish the area.',
-      SurfaceTool.rect => 'Drag to draw a rectangle.',
-      SurfaceTool.select => 'Double-tap an area, door or the wall to edit it. Drag to move.',
+      SurfaceTool.polygon =>
+        _draft.length < 3
+            ? tr('Tap to place the corners of the area.')
+            : tr('Tap the first corner to finish the area.'),
+      SurfaceTool.rect => tr('Drag to draw a rectangle.'),
+      SurfaceTool.select => tr('Double-tap an area, door or the wall to edit it. Drag to move.'),
     };
     return Align(
       alignment: Alignment.topCenter,
@@ -522,15 +532,15 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
 
   Widget _toolbar() {
     Widget tool(SurfaceTool t, IconData icon, String label) => ChoiceChip(
-          avatar: Icon(icon, size: 18),
-          label: Text(label),
-          selected: _tool == t,
-          onSelected: (_) => setState(() {
-            _tool = t;
-            _draft.clear();
-            _draftRect = null;
-          }),
-        );
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      selected: _tool == t,
+      onSelected: (_) => setState(() {
+        _tool = t;
+        _draft.clear();
+        _draftRect = null;
+      }),
+    );
     return Material(
       elevation: 6,
       child: SafeArea(
@@ -538,37 +548,43 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(children: [
-            tool(SurfaceTool.select, Icons.pan_tool_alt_outlined, 'Select'),
-            gap(6),
-            tool(SurfaceTool.rect, Icons.crop_square, 'Rectangle'),
-            gap(6),
-            tool(SurfaceTool.polygon, Icons.polyline_outlined, 'Shape'),
-            if (_tool == SurfaceTool.polygon && _draft.isNotEmpty) ...[
+          child: Row(
+            children: [
+              tool(SurfaceTool.select, Icons.pan_tool_alt_outlined, tr('Select')),
               gap(6),
-              IconButton(
-                  tooltip: 'Undo point',
+              tool(SurfaceTool.rect, Icons.crop_square, tr('Rectangle')),
+              gap(6),
+              tool(SurfaceTool.polygon, Icons.polyline_outlined, tr('Shape')),
+              if (_tool == SurfaceTool.polygon && _draft.isNotEmpty) ...[
+                gap(6),
+                IconButton(
+                  tooltip: tr('Undo point'),
                   onPressed: () => setState(() => _draft.removeLast()),
-                  icon: const Icon(Icons.undo)),
-            ],
-            if (isWall) ...[
-              const SizedBox(width: 16),
-              ActionChip(
+                  icon: const Icon(Icons.undo),
+                ),
+              ],
+              if (isWall) ...[
+                const SizedBox(width: 16),
+                ActionChip(
                   avatar: const Icon(Icons.door_front_door_outlined, size: 18),
-                  label: const Text('Door'),
-                  onPressed: () => _addOpening(OpeningType.door)),
-              gap(6),
-              ActionChip(
+                  label: Text(tr('Door')),
+                  onPressed: () => _addOpening(OpeningType.door),
+                ),
+                gap(6),
+                ActionChip(
                   avatar: const Icon(Icons.window_outlined, size: 18),
-                  label: const Text('Window'),
-                  onPressed: () => _addOpening(OpeningType.window)),
-              gap(6),
-              ActionChip(
+                  label: Text(tr('Window')),
+                  onPressed: () => _addOpening(OpeningType.window),
+                ),
+                gap(6),
+                ActionChip(
                   avatar: const Icon(Icons.bathtub_outlined, size: 18),
-                  label: const Text('Fixture'),
-                  onPressed: _addFixture),
+                  label: Text(tr('Fixture')),
+                  onPressed: _addFixture,
+                ),
+              ],
             ],
-          ]),
+          ),
         ),
       ),
     );
@@ -592,7 +608,10 @@ class _SurfacePainter extends CustomPainter {
 
   void _text(Canvas c, String s, Offset at, {double size = 11, Color color = const Color(0xFF37474F)}) {
     final tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(fontSize: size, color: color, fontWeight: FontWeight.w500)),
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: size, color: color, fontWeight: FontWeight.w500),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     final r = Rect.fromCenter(center: at, width: tp.width + 8, height: tp.height + 2);
@@ -610,12 +629,21 @@ class _SurfacePainter extends CustomPainter {
     canvas.save();
     canvas.translate(s._pan.dx, s._pan.dy);
     canvas.scale(scale, isWall ? -scale : scale);
-    paintSurface(canvas, store, model, s.p.groutMm,
-        plain: isWall ? const Color(0xFFF4EFE6) : const Color(0xFFE6E2DA), flipY: isWall);
-    canvas.drawPath(Path()..addPolygon(model.base, true), Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2 / scale
-      ..color = const Color(0xFF37474F));
+    paintSurface(
+      canvas,
+      store,
+      model,
+      s.p.groutMm,
+      plain: isWall ? const Color(0xFFF4EFE6) : const Color(0xFFE6E2DA),
+      flipY: isWall,
+    );
+    canvas.drawPath(
+      Path()..addPolygon(model.base, true),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 / scale
+        ..color = const Color(0xFF37474F),
+    );
     for (final f in floorFixtures) {
       paintFixturePlan(canvas, f, strokeScale: 1 / scale);
     }
@@ -626,11 +654,17 @@ class _SurfacePainter extends CustomPainter {
       for (final o in s.p.walls[s._wall!].openings) {
         final r = Rect.fromPoints(s.toScreen(o.rect.topLeft), s.toScreen(o.rect.bottomRight));
         final sel = o.id == s._selOpening;
-        canvas.drawRect(r, Paint()..color = o.type == OpeningType.door ? const Color(0xFFBCAAA4) : const Color(0xFFB3E5FC));
-        canvas.drawRect(r, Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = sel ? 3 : 1.5
-          ..color = sel ? Colors.orange.shade800 : const Color(0xFF5D4037));
+        canvas.drawRect(
+          r,
+          Paint()..color = o.type == OpeningType.door ? const Color(0xFFBCAAA4) : const Color(0xFFB3E5FC),
+        );
+        canvas.drawRect(
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = sel ? 3 : 1.5
+            ..color = sel ? Colors.orange.shade800 : const Color(0xFF5D4037),
+        );
         if (o.type == OpeningType.door) {
           canvas.drawCircle(Offset(r.right - 10, r.center.dy), 3, Paint()..color = const Color(0xFF5D4037));
         } else {
@@ -641,20 +675,27 @@ class _SurfacePainter extends CustomPainter {
       // Fixtures against this wall.
       for (final (f, rect) in fixtures) {
         final r = Rect.fromPoints(s.toScreen(rect.topLeft), s.toScreen(rect.bottomRight));
-        canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(4)), Paint()..color = const Color(0x99FFFFFF));
-        canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(4)), Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
-          ..color = const Color(0xFF455A64));
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(r, const Radius.circular(4)),
+          Paint()..color = const Color(0x99FFFFFF),
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(r, const Radius.circular(4)),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..color = const Color(0xFF455A64),
+        );
         final icon = fixtureIcon(f.type);
         final tp = TextPainter(
           text: TextSpan(
             text: String.fromCharCode(icon.codePoint),
             style: TextStyle(
-                fontSize: math.min(36, math.min(r.width, r.height) * 0.6),
-                fontFamily: icon.fontFamily,
-                package: icon.fontPackage,
-                color: const Color(0xFF455A64)),
+              fontSize: math.min(36, math.min(r.width, r.height) * 0.6),
+              fontFamily: icon.fontFamily,
+              package: icon.fontPackage,
+              color: const Color(0xFF455A64),
+            ),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -666,17 +707,24 @@ class _SurfacePainter extends CustomPainter {
     for (final r in model.tiling.regions) {
       final sel = r.id == s._selRegion;
       final path = Path()..addPolygon(r.points.map(s.toScreen).toList(), true);
-      canvas.drawPath(path, Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = sel ? 2.5 : 1
-        ..color = sel ? Colors.orange.shade800 : const Color(0x88263238));
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = sel ? 2.5 : 1
+          ..color = sel ? Colors.orange.shade800 : const Color(0x88263238),
+      );
       if (sel) {
         for (final q in r.points) {
           canvas.drawCircle(s.toScreen(q), 7, Paint()..color = Colors.white);
-          canvas.drawCircle(s.toScreen(q), 7, Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2
-            ..color = Colors.orange.shade800);
+          canvas.drawCircle(
+            s.toScreen(q),
+            7,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2
+              ..color = Colors.orange.shade800,
+          );
         }
       }
     }
@@ -704,14 +752,23 @@ class _SurfacePainter extends CustomPainter {
     // Dimensions.
     final b = model.bounds;
     if (isWall) {
-      _text(canvas, '${fmtNum((b.width * 10).roundToDouble() / 10)} cm',
-          s.toScreen(Offset(b.center.dx, 0)) + const Offset(0, 16));
-      _text(canvas, '${fmtNum(b.height)} cm', s.toScreen(Offset(0, b.center.dy)) - const Offset(30, 0));
+      _text(
+        canvas,
+        '${fmtNum((b.width * 10).roundToDouble() / 10)} ${tr('cm')}',
+        s.toScreen(Offset(b.center.dx, 0)) + const Offset(0, 16),
+      );
+      _text(canvas, '${fmtNum(b.height)} ${tr('cm')}', s.toScreen(Offset(0, b.center.dy)) - const Offset(30, 0));
     } else {
-      _text(canvas, '${fmtNum((b.width * 10).roundToDouble() / 10)} cm',
-          s.toScreen(Offset(b.center.dx, b.bottom)) + const Offset(0, 16));
-      _text(canvas, '${fmtNum((b.height * 10).roundToDouble() / 10)} cm',
-          s.toScreen(Offset(b.left, b.center.dy)) - const Offset(30, 0));
+      _text(
+        canvas,
+        '${fmtNum((b.width * 10).roundToDouble() / 10)} ${tr('cm')}',
+        s.toScreen(Offset(b.center.dx, b.bottom)) + const Offset(0, 16),
+      );
+      _text(
+        canvas,
+        '${fmtNum((b.height * 10).roundToDouble() / 10)} ${tr('cm')}',
+        s.toScreen(Offset(b.left, b.center.dy)) - const Offset(30, 0),
+      );
     }
   }
 

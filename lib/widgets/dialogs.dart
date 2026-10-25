@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import 'common.dart';
+import '../i18n.dart';
 
 Future<double?> showAngleDialog(BuildContext context, double current) {
   final ctrl = TextEditingController(text: '90')..selection = const TextSelection(baseOffset: 0, extentOffset: 2);
@@ -15,16 +16,21 @@ Future<double?> showAngleDialog(BuildContext context, double current) {
   return showDialog<double>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Corner angle'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        NumberField(ctrl, 'Angle', suffix: '°', autofocus: true, onSubmitted: (_) => submit(c)),
-        gap(8),
-        Text('Now ${current.toStringAsFixed(1)}°. The opposite wall stretches to fit.',
-            style: Theme.of(c).textTheme.bodySmall),
-      ]),
+      title: Text(tr('Corner angle')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          NumberField(ctrl, tr('Angle'), suffix: '°', autofocus: true, onSubmitted: (_) => submit(c)),
+          gap(8),
+          Text(
+            tr('Now {a}°. The opposite wall stretches to fit.', {'a': current.toStringAsFixed(1)}),
+            style: Theme.of(c).textTheme.bodySmall,
+          ),
+        ],
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-        FilledButton(onPressed: () => submit(c), child: const Text('Set')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
+        FilledButton(onPressed: () => submit(c), child: Text(tr('Set'))),
       ],
     ),
   );
@@ -44,53 +50,65 @@ Future<WallDialogResult?> showWallDialog(BuildContext context, int index, double
   String? tile = wall.tiling.tileId;
   return showDialog<WallDialogResult>(
     context: context,
-    builder: (c) => StatefulBuilder(builder: (c, setState) {
-      WallDialogResult? result(bool open) {
-        final l = parseNum(len.text), hh = parseNum(h.text);
-        if (l == null || hh == null || l <= 0 || hh <= 0) return null;
-        return WallDialogResult(l, hh, tile, open);
-      }
+    builder: (c) => StatefulBuilder(
+      builder: (c, setState) {
+        WallDialogResult? result(bool open) {
+          final l = parseNum(len.text), hh = parseNum(h.text);
+          if (l == null || hh == null || l <= 0 || hh <= 0) return null;
+          return WallDialogResult(l, hh, tile, open);
+        }
 
-      return AlertDialog(
-        title: Text('Wall ${index + 1}'),
-        content: SizedBox(
-          width: 360,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Expanded(child: NumberField(len, 'Length', autofocus: true)),
-              gap(),
-              Expanded(child: NumberField(h, 'Height')),
-            ]),
-            gap(),
-            TilePicker(value: tile, onChanged: (v) => setState(() => tile = v), label: 'Wall tile'),
-            gap(),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  final r = result(true);
-                  if (r != null) Navigator.pop(c, r);
-                },
-                icon: const Icon(Icons.open_in_full),
-                label: Text(wall.tiling.regions.isEmpty && wall.openings.isEmpty
-                    ? 'Open wall view'
-                    : 'Open wall view (${_plural(wall.tiling.regions.length, 'area')}, ${_plural(wall.openings.length, 'opening')})'),
-              ),
+        return AlertDialog(
+          title: Text(tr('Wall {n}', {'n': index + 1})),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: NumberField(len, tr('Length'), autofocus: true)),
+                    gap(),
+                    Expanded(child: NumberField(h, tr('Height'))),
+                  ],
+                ),
+                gap(),
+                TilePicker(value: tile, onChanged: (v) => setState(() => tile = v), label: tr('Wall tile')),
+                gap(),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final r = result(true);
+                      if (r != null) Navigator.pop(c, r);
+                    },
+                    icon: const Icon(Icons.open_in_full),
+                    label: Text(
+                      wall.tiling.regions.isEmpty && wall.openings.isEmpty
+                          ? tr('Open wall view')
+                          : tr('Open wall view ({areas}, {openings})', {
+                              'areas': _count(wall.tiling.regions.length, 'area'),
+                              'openings': _count(wall.openings.length, 'opening'),
+                            }),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final r = result(false);
-              if (r != null) Navigator.pop(c, r);
-            },
-            child: const Text('Save'),
           ),
-        ],
-      );
-    }),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
+            FilledButton(
+              onPressed: () {
+                final r = result(false);
+                if (r != null) Navigator.pop(c, r);
+              },
+              child: Text(tr('Save')),
+            ),
+          ],
+        );
+      },
+    ),
   );
 }
 
@@ -106,53 +124,60 @@ Future<FloorDialogResult?> showFloorDialog(BuildContext context, Size size, Stri
   String? tile = tileId;
   return showDialog<FloorDialogResult>(
     context: context,
-    builder: (c) => StatefulBuilder(builder: (c, setState) {
-      FloorDialogResult? result(bool open) {
-        final ww = parseNum(w.text), hh = parseNum(h.text);
-        if (ww == null || hh == null || ww <= 0 || hh <= 0) return null;
-        return FloorDialogResult(ww, hh, tile, open);
-      }
+    builder: (c) => StatefulBuilder(
+      builder: (c, setState) {
+        FloorDialogResult? result(bool open) {
+          final ww = parseNum(w.text), hh = parseNum(h.text);
+          if (ww == null || hh == null || ww <= 0 || hh <= 0) return null;
+          return FloorDialogResult(ww, hh, tile, open);
+        }
 
-      return AlertDialog(
-        title: const Text('Floor'),
-        content: SizedBox(
-          width: 360,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Expanded(child: NumberField(w, 'Width')),
-              gap(),
-              Expanded(child: NumberField(h, 'Depth')),
-            ]),
-            gap(4),
-            Text('Changing these stretches the whole room.', style: Theme.of(c).textTheme.bodySmall),
-            gap(),
-            TilePicker(value: tile, onChanged: (v) => setState(() => tile = v), label: 'Floor tile'),
-            gap(),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  final r = result(true);
-                  if (r != null) Navigator.pop(c, r);
-                },
-                icon: const Icon(Icons.draw_outlined),
-                label: const Text('Draw tiled areas on the floor'),
-              ),
+        return AlertDialog(
+          title: Text(tr('Floor')),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: NumberField(w, tr('Width'))),
+                    gap(),
+                    Expanded(child: NumberField(h, tr('Depth'))),
+                  ],
+                ),
+                gap(4),
+                Text(tr('Changing these stretches the whole room.'), style: Theme.of(c).textTheme.bodySmall),
+                gap(),
+                TilePicker(value: tile, onChanged: (v) => setState(() => tile = v), label: tr('Floor tile')),
+                gap(),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final r = result(true);
+                      if (r != null) Navigator.pop(c, r);
+                    },
+                    icon: const Icon(Icons.draw_outlined),
+                    label: Text(tr('Draw tiled areas on the floor')),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final r = result(false);
-              if (r != null) Navigator.pop(c, r);
-            },
-            child: const Text('Save'),
           ),
-        ],
-      );
-    }),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
+            FilledButton(
+              onPressed: () {
+                final r = result(false);
+                if (r != null) Navigator.pop(c, r);
+              },
+              child: Text(tr('Save')),
+            ),
+          ],
+        );
+      },
+    ),
   );
 }
 
@@ -163,28 +188,35 @@ Future<String?> showFixtureDialog(BuildContext context, Fixture f) {
   return showDialog<String>(
     context: context,
     builder: (c) => AlertDialog(
-      title: Text(f.label),
+      title: Text(tr(f.label)),
       content: SizedBox(
         width: 360,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Row(children: [
-            Expanded(child: NumberField(w, 'Width')),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(child: NumberField(w, tr('Width'))),
+                gap(),
+                Expanded(child: NumberField(d, tr('Depth'))),
+              ],
+            ),
             gap(),
-            Expanded(child: NumberField(d, 'Depth')),
-          ]),
-          gap(),
-          Row(children: [
-            Expanded(child: NumberField(h, 'Height')),
+            Row(
+              children: [
+                Expanded(child: NumberField(h, tr('Height'))),
+                gap(),
+                Expanded(child: NumberField(e, tr('From floor'))),
+              ],
+            ),
             gap(),
-            Expanded(child: NumberField(e, 'From floor')),
-          ]),
-          gap(),
-          NumberField(rot, 'Rotation', suffix: '°'),
-        ]),
+            NumberField(rot, tr('Rotation'), suffix: '°'),
+          ],
+        ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: const Text('Delete')),
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Delete'))),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
         FilledButton(
           onPressed: () {
             f.width = parseNum(w.text) ?? f.width;
@@ -194,7 +226,7 @@ Future<String?> showFixtureDialog(BuildContext context, Fixture f) {
             f.rotation = (parseNum(rot.text) ?? 0) * math.pi / 180;
             Navigator.pop(c, 'save');
           },
-          child: const Text('Save'),
+          child: Text(tr('Save')),
         ),
       ],
     ),
@@ -217,11 +249,17 @@ Future<FixtureType?> pickFixtureType(BuildContext context, IconData Function(Fix
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                   onPressed: () => Navigator.pop(c, t),
-                  child: Column(children: [
-                    Icon(icon(t), size: 32),
-                    gap(6),
-                    Text(fixtureSpecs[t]!.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-                  ]),
+                  child: Column(
+                    children: [
+                      Icon(icon(t), size: 32),
+                      gap(6),
+                      Text(
+                        tr(fixtureSpecs[t]!.label),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -239,35 +277,50 @@ Future<String?> showOpeningDialog(BuildContext context, Opening o) {
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Door / window'),
+        title: Text(tr('Door / window')),
         content: SizedBox(
           width: 360,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            SegmentedButton<OpeningType>(
-              segments: const [
-                ButtonSegment(value: OpeningType.door, label: Text('Door'), icon: Icon(Icons.door_front_door_outlined)),
-                ButtonSegment(value: OpeningType.window, label: Text('Window'), icon: Icon(Icons.window_outlined)),
-              ],
-              selected: {type},
-              onSelectionChanged: (s) => setState(() => type = s.first),
-            ),
-            gap(),
-            Row(children: [
-              Expanded(child: NumberField(w, 'Width')),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<OpeningType>(
+                segments: [
+                  ButtonSegment(
+                    value: OpeningType.door,
+                    label: Text(tr('Door')),
+                    icon: Icon(Icons.door_front_door_outlined),
+                  ),
+                  ButtonSegment(
+                    value: OpeningType.window,
+                    label: Text(tr('Window')),
+                    icon: Icon(Icons.window_outlined),
+                  ),
+                ],
+                selected: {type},
+                onSelectionChanged: (s) => setState(() => type = s.first),
+              ),
               gap(),
-              Expanded(child: NumberField(h, 'Height')),
-            ]),
-            gap(),
-            Row(children: [
-              Expanded(child: NumberField(x, 'From wall start')),
+              Row(
+                children: [
+                  Expanded(child: NumberField(w, tr('Width'))),
+                  gap(),
+                  Expanded(child: NumberField(h, tr('Height'))),
+                ],
+              ),
               gap(),
-              Expanded(child: NumberField(y, 'From floor')),
-            ]),
-          ]),
+              Row(
+                children: [
+                  Expanded(child: NumberField(x, tr('From wall start'))),
+                  gap(),
+                  Expanded(child: NumberField(y, tr('From floor'))),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: const Text('Delete')),
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Delete'))),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
               o
@@ -278,7 +331,7 @@ Future<String?> showOpeningDialog(BuildContext context, Opening o) {
                 ..height = parseNum(h.text) ?? o.height;
               Navigator.pop(c, 'save');
             },
-            child: const Text('Save'),
+            child: Text(tr('Save')),
           ),
         ],
       ),
@@ -293,22 +346,19 @@ Future<String?> showRegionDialog(BuildContext context, String? current, {bool ca
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Tiles for this area'),
+        title: Text(tr('Tiles for this area')),
         content: SizedBox(
           width: 360,
           child: TilePicker(value: tile, allowNone: false, onChanged: (v) => setState(() => tile = v)),
         ),
         actions: [
-          if (canDelete) TextButton(onPressed: () => Navigator.pop(c, ''), child: const Text('Delete area')),
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: tile == null ? null : () => Navigator.pop(c, tile),
-            child: const Text('Save'),
-          ),
+          if (canDelete) TextButton(onPressed: () => Navigator.pop(c, ''), child: Text(tr('Delete area'))),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: tile == null ? null : () => Navigator.pop(c, tile), child: Text(tr('Save'))),
         ],
       ),
     ),
   );
 }
 
-String _plural(int n, String word) => '$n ${n == 1 ? word : '${word}s'}';
+String _count(int n, String word) => '$n ${plural(n, tr(word), tr('${word}s2'), tr('${word}s'))}';

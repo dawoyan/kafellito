@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
+import 'i18n.dart';
 import 'models.dart';
 import 'storage.dart';
 
@@ -22,6 +23,8 @@ class AppStore extends ChangeNotifier {
   final List<Tile> tiles = [];
   final List<Project> projects = [];
   bool loaded = false;
+  String lang = 'en';
+  double defaultGapMm = 2;
 
   final Map<String, TileTexture> _textures = {};
   final Map<String, String> _textureKeys = {};
@@ -39,6 +42,10 @@ class AppStore extends ChangeNotifier {
         final j = jsonDecode(raw) as Map<String, dynamic>;
         tiles.addAll(((j['tiles'] as List?) ?? []).map((e) => Tile.fromJson(e as Map<String, dynamic>)));
         projects.addAll(((j['projects'] as List?) ?? []).map((e) => Project.fromJson(e as Map<String, dynamic>)));
+        final s = j['settings'] as Map<String, dynamic>? ?? {};
+        lang = s['lang'] as String? ?? 'en';
+        defaultGapMm = (s['gap'] as num?)?.toDouble() ?? 2;
+        appLang = lang;
       } else {
         _seed();
       }
@@ -51,23 +58,50 @@ class AppStore extends ChangeNotifier {
   }
 
   void _seed() {
-    final white = Tile(code: 'W-3060', name: 'Gloss white', widthCm: 30, heightCm: 60, colorValue: 0xFFF2F0EA, piecesPerBox: 8);
-    final blue = Tile(code: 'B-1010', name: 'Aegean blue', widthCm: 10, heightCm: 10, colorValue: 0xFF2F6C9E, piecesPerBox: 100);
-    final stone = Tile(code: 'S-6060', name: 'Travertine', widthCm: 60, heightCm: 60, colorValue: 0xFFC9B79C, piecesPerBox: 4);
+    final white = Tile(
+      code: 'W-3060',
+      name: 'Gloss white',
+      widthCm: 30,
+      heightCm: 60,
+      colorValue: 0xFFF2F0EA,
+      piecesPerBox: 8,
+    );
+    final blue = Tile(
+      code: 'B-1010',
+      name: 'Aegean blue',
+      widthCm: 10,
+      heightCm: 10,
+      colorValue: 0xFF2F6C9E,
+      piecesPerBox: 100,
+    );
+    final stone = Tile(
+      code: 'S-6060',
+      name: 'Travertine',
+      widthCm: 60,
+      heightCm: 60,
+      colorValue: 0xFFC9B79C,
+      piecesPerBox: 4,
+    );
     tiles.addAll([white, blue, stone]);
     final p = Project(
       name: 'Sample bathroom',
-      points: const [Offset(0, 0), Offset(240, 0), Offset(240, 180), Offset(120, 180), Offset(120, 260), Offset(0, 260)],
+      points: const [
+        Offset(0, 0),
+        Offset(240, 0),
+        Offset(240, 180),
+        Offset(120, 180),
+        Offset(120, 260),
+        Offset(0, 260),
+      ],
       closed: true,
     );
     p.floor.tileId = stone.id;
     for (final w in p.walls) {
       w.tiling.tileId = white.id;
     }
-    p.walls[0].tiling.regions.add(Region(
-      points: const [Offset(0, 100), Offset(240, 100), Offset(240, 120), Offset(0, 120)],
-      tileId: blue.id,
-    ));
+    p.walls[0].tiling.regions.add(
+      Region(points: const [Offset(0, 100), Offset(240, 100), Offset(240, 120), Offset(0, 120)], tileId: blue.id),
+    );
     p.walls[4].openings.add(Opening(x: 20, width: 80, height: 205));
     p.fixtures.addAll([
       Fixture(type: FixtureType.sink, pos: const Offset(70, 23)),
@@ -88,6 +122,7 @@ class AppStore extends ChangeNotifier {
     _saveTimer?.cancel();
     final json = jsonEncode({
       'version': 1,
+      'settings': {'lang': lang, 'gap': defaultGapMm},
       'tiles': tiles.map((t) => t.toJson()).toList(),
       'projects': projects.map((p) => p.toJson()).toList(),
     });
@@ -101,6 +136,22 @@ class AppStore extends ChangeNotifier {
   void changed() {
     notifyListeners();
     scheduleSave();
+  }
+
+  void setLanguage(String code) {
+    lang = code;
+    appLang = code;
+    changed();
+  }
+
+  void setDefaultGap(double mm, {bool applyToAll = false}) {
+    defaultGapMm = mm;
+    if (applyToAll) {
+      for (final p in projects) {
+        p.groutMm = mm;
+      }
+    }
+    changed();
   }
 
   void upsertTile(Tile t) {
@@ -199,15 +250,12 @@ class AppStore extends ChangeNotifier {
       c.drawRect(
         inner,
         ui.Paint()
-          ..shader = ui.Gradient.linear(inner.topLeft, inner.bottomRight, [
-            const ui.Color(0x33FFFFFF),
-            const ui.Color(0x00FFFFFF),
-            const ui.Color(0x1A000000),
-          ], [
-            0,
-            0.5,
-            1
-          ]),
+          ..shader = ui.Gradient.linear(
+            inner.topLeft,
+            inner.bottomRight,
+            [const ui.Color(0x33FFFFFF), const ui.Color(0x00FFFFFF), const ui.Color(0x1A000000)],
+            [0, 0.5, 1],
+          ),
       );
     }
     final img = await rec.endRecording().toImage(wpx, hpx);

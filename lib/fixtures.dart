@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'models.dart';
 
 IconData fixtureIcon(FixtureType t) => switch (t) {
-      FixtureType.sink => Icons.wash,
-      FixtureType.toilet => Icons.wc,
-      FixtureType.shower => Icons.shower,
-      FixtureType.bathtub => Icons.bathtub,
-      FixtureType.washer => Icons.local_laundry_service,
-      FixtureType.cabinet => Icons.kitchen,
-      FixtureType.mirror => Icons.crop_portrait,
-    };
+  FixtureType.sink => Icons.wash,
+  FixtureType.toilet => Icons.wc,
+  FixtureType.shower => Icons.shower,
+  FixtureType.bathtub => Icons.bathtub,
+  FixtureType.washer => Icons.local_laundry_service,
+  FixtureType.cabinet => Icons.kitchen,
+  FixtureType.mirror => Icons.crop_portrait,
+};
 
 /// Box in the fixture's local frame: x across, y from back (-d/2) to front,
 /// z up from the floor.
@@ -68,9 +68,7 @@ List<Box3> fixtureBoxes(Fixture f) {
         Box3(-0.5, 0.5, d, d + 0.5, e + 2, e + h - 2, const Color(0xFF6E4F35)),
       ];
     case FixtureType.mirror:
-      return [
-        Box3(-w, w, -d, d, e, e + h, const Color(0xFFCFE3EC)),
-      ];
+      return [Box3(-w, w, -d, d, e, e + h, const Color(0xFFCFE3EC))];
   }
 }
 

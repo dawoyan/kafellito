@@ -12,6 +12,7 @@ import '../geometry.dart';
 import '../models.dart';
 import '../store.dart';
 import '../surfaces.dart';
+import '../i18n.dart';
 
 /// World space: x = plan x, y = up, z = -plan y (so the view is not mirrored).
 Vector3 _w(Offset plan, double h) => Vector3(plan.dx, h, -plan.dy);
@@ -36,8 +37,15 @@ class _SurfaceMesh {
   final Offset? wallNormal;
   final bool isFloor;
   final bool isCeiling;
-  _SurfaceMesh(this.quads, this.center, this.shade,
-      {this.wallA, this.wallNormal, this.isFloor = false, this.isCeiling = false});
+  _SurfaceMesh(
+    this.quads,
+    this.center,
+    this.shade, {
+    this.wallA,
+    this.wallNormal,
+    this.isFloor = false,
+    this.isCeiling = false,
+  });
 }
 
 class _Face {
@@ -101,8 +109,13 @@ class _RoomMesh {
           final r = o.rect.intersect(s.bounds);
           if (r.width <= 0 || r.height <= 0) continue;
           final pts = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft];
-          quads.add(_Quad(pts.map(toWorld).toList(), pts.map(uvOf).toList(),
-              o.type == OpeningType.door ? _doorKey : _windowKey));
+          quads.add(
+            _Quad(
+              pts.map(toWorld).toList(),
+              pts.map(uvOf).toList(),
+              o.type == OpeningType.door ? _doorKey : _windowKey,
+            ),
+          );
         }
       }
       if (s.isFloor) {
@@ -128,12 +141,23 @@ class _RoomMesh {
       for (final bx in fixtureBoxes(f)) {
         Vector3 v(double x, double y, double z) => _w(f.toPlan(x, y), z);
         final c = [
-          v(bx.x0, bx.y0, bx.z0), v(bx.x1, bx.y0, bx.z0), v(bx.x1, bx.y1, bx.z0), v(bx.x0, bx.y1, bx.z0),
-          v(bx.x0, bx.y0, bx.z1), v(bx.x1, bx.y0, bx.z1), v(bx.x1, bx.y1, bx.z1), v(bx.x0, bx.y1, bx.z1),
+          v(bx.x0, bx.y0, bx.z0),
+          v(bx.x1, bx.y0, bx.z0),
+          v(bx.x1, bx.y1, bx.z0),
+          v(bx.x0, bx.y1, bx.z0),
+          v(bx.x0, bx.y0, bx.z1),
+          v(bx.x1, bx.y0, bx.z1),
+          v(bx.x1, bx.y1, bx.z1),
+          v(bx.x0, bx.y1, bx.z1),
         ];
         final center = c.fold(Vector3.zero(), (a, b) => a + b) / 8;
         for (final idx in const [
-          [0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7],
+          [0, 1, 2, 3],
+          [4, 5, 6, 7],
+          [0, 1, 5, 4],
+          [1, 2, 6, 5],
+          [2, 3, 7, 6],
+          [3, 0, 4, 7],
         ]) {
           final pts = idx.map((k) => c[k]).toList();
           var n = (pts[1] - pts[0]).cross(pts[2] - pts[0]);
@@ -265,8 +289,12 @@ class _Room3DViewState extends State<Room3DView> {
         }
         if (clear < 25) continue;
         if (p.fixtures.any((f) => f.elevation < 150 && f.contains(q))) continue;
-        final near = p.fixtures.where((f) => f.elevation < 150).fold<double>(
-            double.infinity, (m, f) => math.min(m, (f.pos - q).distance - math.max(f.width, f.depth) / 2));
+        final near = p.fixtures
+            .where((f) => f.elevation < 150)
+            .fold<double>(
+              double.infinity,
+              (m, f) => math.min(m, (f.pos - q).distance - math.max(f.width, f.depth) / 2),
+            );
         if (near < 20) continue;
         final score = (q - target).distance;
         if (score > pickScore) {
@@ -319,83 +347,90 @@ class _Room3DViewState extends State<Room3DView> {
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
     if (!p.closed || p.points.length < 3) {
-      return const Center(child: Text('Finish the room plan to see it in 3D.'));
+      return Center(child: Text(tr('Finish the room plan to see it in 3D.')));
     }
     if (_mesh == null || _meshRev != widget.revision) {
       _mesh = _RoomMesh.build(p);
       _meshRev = widget.revision;
     }
-    return Stack(children: [
-      Positioned.fill(
-        child: Listener(
-          onPointerSignal: (e) {
-            if (e is PointerScrollEvent) _move(e.scrollDelta.dy > 0 ? -20 : 20, 0);
-          },
-          child: GestureDetector(
-            onScaleStart: (d) {
-              _pointers = d.pointerCount;
-              _lastFocal = d.localFocalPoint;
-              _startDist = _orbitDist;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Listener(
+            onPointerSignal: (e) {
+              if (e is PointerScrollEvent) _move(e.scrollDelta.dy > 0 ? -20 : 20, 0);
             },
-            onScaleUpdate: (d) {
-              final delta = d.localFocalPoint - _lastFocal;
-              _lastFocal = d.localFocalPoint;
-              if (d.pointerCount != _pointers) {
+            child: GestureDetector(
+              onScaleStart: (d) {
                 _pointers = d.pointerCount;
-                _startDist = _orbitDist / d.scale;
-                return;
-              }
-              setState(() {
-                if (d.pointerCount >= 2) {
-                  if (_inside) {
-                    _move((d.scale - 1) * 6, 0);
-                  } else {
-                    _orbitDist = (_startDist / d.scale).clamp(150.0, 3000.0);
-                    _placeOrbit();
-                  }
+                _lastFocal = d.localFocalPoint;
+                _startDist = _orbitDist;
+              },
+              onScaleUpdate: (d) {
+                final delta = d.localFocalPoint - _lastFocal;
+                _lastFocal = d.localFocalPoint;
+                if (d.pointerCount != _pointers) {
+                  _pointers = d.pointerCount;
+                  _startDist = _orbitDist / d.scale;
                   return;
                 }
-                _cam.yaw -= delta.dx * 0.006 * (_inside ? 1 : -1);
-                _cam.pitch = (_cam.pitch - delta.dy * 0.004 * (_inside ? 1 : -1)).clamp(_inside ? -1.3 : -1.5, _inside ? 1.3 : -0.05);
-                if (!_inside) _placeOrbit();
-              });
-            },
-            child: CustomPaint(painter: _RoomPainter(_mesh!, _cam, store, p.groutMm)),
+                setState(() {
+                  if (d.pointerCount >= 2) {
+                    if (_inside) {
+                      _move((d.scale - 1) * 6, 0);
+                    } else {
+                      _orbitDist = (_startDist / d.scale).clamp(150.0, 3000.0);
+                      _placeOrbit();
+                    }
+                    return;
+                  }
+                  _cam.yaw -= delta.dx * 0.006 * (_inside ? 1 : -1);
+                  _cam.pitch = (_cam.pitch - delta.dy * 0.004 * (_inside ? 1 : -1)).clamp(
+                    _inside ? -1.3 : -1.5,
+                    _inside ? 1.3 : -0.05,
+                  );
+                  if (!_inside) _placeOrbit();
+                });
+              },
+              child: CustomPaint(painter: _RoomPainter(_mesh!, _cam, store, p.groutMm)),
+            ),
           ),
         ),
-      ),
-      Positioned(
-        top: 12,
-        left: 12,
-        child: SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: true, label: Text('Inside'), icon: Icon(Icons.accessibility_new)),
-            ButtonSegment(value: false, label: Text('Overview'), icon: Icon(Icons.view_in_ar)),
-          ],
-          selected: {_inside},
-          style: const ButtonStyle(backgroundColor: WidgetStatePropertyAll(Color(0xEEFFFFFF))),
-          onSelectionChanged: (s) => setState(() {
-            _inside = s.first;
-            _resetCamera();
-          }),
+        Positioned(
+          top: 12,
+          left: 12,
+          child: SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(value: true, label: Text(tr('Inside')), icon: Icon(Icons.accessibility_new)),
+              ButtonSegment(value: false, label: Text(tr('Overview')), icon: Icon(Icons.view_in_ar)),
+            ],
+            selected: {_inside},
+            style: const ButtonStyle(backgroundColor: WidgetStatePropertyAll(Color(0xEEFFFFFF))),
+            onSelectionChanged: (s) => setState(() {
+              _inside = s.first;
+              _resetCamera();
+            }),
+          ),
         ),
-      ),
-      Positioned(
-        right: 16,
-        bottom: 16,
-        child: _Pad(onStart: _startRepeat, onStop: _stopRepeat),
-      ),
-      Positioned(
-        left: 16,
-        bottom: 16,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(color: const Color(0xCCFFFFFF), borderRadius: BorderRadius.circular(12)),
-          child: Text(_inside ? 'Drag to look around · pinch to walk' : 'Drag to orbit · pinch to zoom',
-              style: Theme.of(context).textTheme.bodySmall),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: _Pad(onStart: _startRepeat, onStop: _stopRepeat),
         ),
-      ),
-    ]);
+        Positioned(
+          left: 16,
+          bottom: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: const Color(0xCCFFFFFF), borderRadius: BorderRadius.circular(12)),
+            child: Text(
+              _inside ? tr('Drag to look around · pinch to walk') : tr('Drag to orbit · pinch to zoom'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -405,29 +440,35 @@ class _Pad extends StatelessWidget {
   const _Pad({required this.onStart, required this.onStop});
 
   Widget _btn(IconData icon, double f, double s) => GestureDetector(
-        onTapDown: (_) => onStart(f, s),
-        onTapUp: (_) => onStop(),
-        onTapCancel: onStop,
-        child: Container(
-          width: 48,
-          height: 48,
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(color: const Color(0xDDFFFFFF), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon),
-        ),
-      );
+    onTapDown: (_) => onStart(f, s),
+    onTapUp: (_) => onStop(),
+    onTapCancel: onStop,
+    child: Container(
+      width: 48,
+      height: 48,
+      margin: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: const Color(0xDDFFFFFF), borderRadius: BorderRadius.circular(12)),
+      child: Icon(icon),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      _btn(Icons.keyboard_arrow_up, 15, 0),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        _btn(Icons.keyboard_arrow_left, 0, -15),
-        const SizedBox(width: 52),
-        _btn(Icons.keyboard_arrow_right, 0, 15),
-      ]),
-      _btn(Icons.keyboard_arrow_down, -15, 0),
-    ]);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _btn(Icons.keyboard_arrow_up, 15, 0),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _btn(Icons.keyboard_arrow_left, 0, -15),
+            const SizedBox(width: 52),
+            _btn(Icons.keyboard_arrow_right, 0, 15),
+          ],
+        ),
+        _btn(Icons.keyboard_arrow_down, -15, 0),
+      ],
+    );
   }
 }
 
@@ -471,8 +512,10 @@ class _RoomPainter extends CustomPainter {
     canvas.drawRect(
       Offset.zero & size,
       Paint()
-        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, size.height),
-            [const Color(0xFFDDE4EA), const Color(0xFFF5F5F2)]),
+        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, size.height), [
+          const Color(0xFFDDE4EA),
+          const Color(0xFFF5F5F2),
+        ]),
     );
     final cx = size.width / 2, cy = size.height / 2;
     // 90° across the narrow side of the screen, like a wide phone camera.
@@ -509,16 +552,20 @@ class _RoomPainter extends CustomPainter {
             : q.key == _doorKey
             ? const Color(0xFF8B6447)
             : q.key == _windowKey
-                ? const Color(0xFFBFE3F2)
-                : q.key == plainKey || tile == null
-                    ? (s.isFloor ? const Color(0xFFD8D3CA) : const Color(0xFFF1ECE3))
-                    : (tex == null ? tile.color : Colors.white);
+            ? const Color(0xFFBFE3F2)
+            : q.key == plainKey || tile == null
+            ? (s.isFloor ? const Color(0xFFD8D3CA) : const Color(0xFFF1ECE3))
+            : (tex == null ? tile.color : Colors.white);
         final r = (base.r * shade).round(), g = (base.g * shade).round(), bl = (base.b * shade).round();
         final col = (0xFF << 24) | (r << 16) | (g << 8) | bl;
         for (var k = 1; k < pts.length - 1; k++) {
           for (final j in [0, k, k + 1]) {
-            b.pos..add(pts[j].dx)..add(pts[j].dy);
-            b.tex..add(uv[j].dx * ppc)..add(uv[j].dy * ppc);
+            b.pos
+              ..add(pts[j].dx)
+              ..add(pts[j].dy);
+            b.tex
+              ..add(uv[j].dx * ppc)
+              ..add(uv[j].dy * ppc);
             b.col.add(col);
           }
         }
@@ -554,7 +601,8 @@ class _RoomPainter extends CustomPainter {
       final depth = cam.toCam(fc).z;
       final k = 0.62 + 0.38 * math.max(0.0, f.normal.dot(light));
       final c = f.color;
-      final col = ((c.a * 255).round() << 24) |
+      final col =
+          ((c.a * 255).round() << 24) |
           ((c.r * 255 * k).round().clamp(0, 255) << 16) |
           ((c.g * 255 * k).round().clamp(0, 255) << 8) |
           (c.b * 255 * k).round().clamp(0, 255);
@@ -566,7 +614,9 @@ class _RoomPainter extends CustomPainter {
     for (final (_, pts, c) in faces) {
       for (var k = 1; k < pts.length - 1; k++) {
         for (final j in [0, k, k + 1]) {
-          pos..add(pts[j].dx)..add(pts[j].dy);
+          pos
+            ..add(pts[j].dx)
+            ..add(pts[j].dy);
           col.add(c);
         }
       }

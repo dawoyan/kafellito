@@ -46,26 +46,26 @@ class Tile {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'code': code,
-        'name': name,
-        'w': widthCm,
-        'h': heightCm,
-        'color': colorValue,
-        if (imageBase64 != null) 'img': imageBase64,
-        if (piecesPerBox != null) 'ppb': piecesPerBox,
-      };
+    'id': id,
+    'code': code,
+    'name': name,
+    'w': widthCm,
+    'h': heightCm,
+    'color': colorValue,
+    if (imageBase64 != null) 'img': imageBase64,
+    if (piecesPerBox != null) 'ppb': piecesPerBox,
+  };
 
   factory Tile.fromJson(Map<String, dynamic> j) => Tile(
-        id: j['id'] as String,
-        code: j['code'] as String? ?? '',
-        name: j['name'] as String? ?? '',
-        widthCm: _d(j['w'], 30),
-        heightCm: _d(j['h'], 30),
-        colorValue: j['color'] as int? ?? 0xFFD9D4C7,
-        imageBase64: j['img'] as String?,
-        piecesPerBox: j['ppb'] as int?,
-      );
+    id: j['id'] as String,
+    code: j['code'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    widthCm: _d(j['w'], 30),
+    heightCm: _d(j['h'], 30),
+    colorValue: j['color'] as int? ?? 0xFFD9D4C7,
+    imageBase64: j['img'] as String?,
+    piecesPerBox: j['ppb'] as int?,
+  );
 }
 
 String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
@@ -81,11 +81,8 @@ class Region {
 
   Map<String, dynamic> toJson() => {'id': id, 'pts': points.map(_pt).toList(), 'tile': tileId};
 
-  factory Region.fromJson(Map<String, dynamic> j) => Region(
-        id: j['id'] as String,
-        points: (j['pts'] as List).map(_off).toList(),
-        tileId: j['tile'] as String,
-      );
+  factory Region.fromJson(Map<String, dynamic> j) =>
+      Region(id: j['id'] as String, points: (j['pts'] as List).map(_off).toList(), tileId: j['tile'] as String);
 
   Region copy() => Region(id: id, points: List.of(points), tileId: tileId);
 }
@@ -102,21 +99,20 @@ class Opening {
   double height;
 
   Opening({String? id, this.type = OpeningType.door, this.x = 0, this.y = 0, this.width = 80, this.height = 205})
-      : id = id ?? newId();
+    : id = id ?? newId();
 
   Rect get rect => Rect.fromLTWH(x, y, width, height);
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'type': type.name, 'x': x, 'y': y, 'w': width, 'h': height};
+  Map<String, dynamic> toJson() => {'id': id, 'type': type.name, 'x': x, 'y': y, 'w': width, 'h': height};
 
   factory Opening.fromJson(Map<String, dynamic> j) => Opening(
-        id: j['id'] as String,
-        type: OpeningType.values.byName(j['type'] as String? ?? 'door'),
-        x: _d(j['x'], 0),
-        y: _d(j['y'], 0),
-        width: _d(j['w'], 80),
-        height: _d(j['h'], 205),
-      );
+    id: j['id'] as String,
+    type: OpeningType.values.byName(j['type'] as String? ?? 'door'),
+    x: _d(j['x'], 0),
+    y: _d(j['y'], 0),
+    width: _d(j['w'], 80),
+    height: _d(j['h'], 205),
+  );
 }
 
 /// Tiling of one surface: an optional base tile plus regions with other tiles.
@@ -129,9 +125,9 @@ class SurfaceTiling {
   bool get isTiled => tileId != null || regions.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
-        if (tileId != null) 'tile': tileId,
-        'regions': regions.map((r) => r.toJson()).toList(),
-      };
+    if (tileId != null) 'tile': tileId,
+    'regions': regions.map((r) => r.toJson()).toList(),
+  };
 
   factory SurfaceTiling.fromJson(Map<String, dynamic>? j) => j == null
       ? SurfaceTiling()
@@ -148,20 +144,20 @@ class Wall {
   List<Opening> openings;
 
   Wall({this.height = 250, SurfaceTiling? tiling, List<Opening>? openings})
-      : tiling = tiling ?? SurfaceTiling(),
-        openings = openings ?? [];
+    : tiling = tiling ?? SurfaceTiling(),
+      openings = openings ?? [];
 
   Map<String, dynamic> toJson() => {
-        'h': height,
-        'tiling': tiling.toJson(),
-        'openings': openings.map((o) => o.toJson()).toList(),
-      };
+    'h': height,
+    'tiling': tiling.toJson(),
+    'openings': openings.map((o) => o.toJson()).toList(),
+  };
 
   factory Wall.fromJson(Map<String, dynamic> j) => Wall(
-        height: _d(j['h'], 250),
-        tiling: SurfaceTiling.fromJson(j['tiling'] as Map<String, dynamic>?),
-        openings: ((j['openings'] as List?) ?? []).map((e) => Opening.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    height: _d(j['h'], 250),
+    tiling: SurfaceTiling.fromJson(j['tiling'] as Map<String, dynamic>?),
+    openings: ((j['openings'] as List?) ?? []).map((e) => Opening.fromJson(e as Map<String, dynamic>)).toList(),
+  );
 }
 
 enum FixtureType { sink, toilet, shower, bathtub, washer, cabinet, mirror }
@@ -201,11 +197,11 @@ class Fixture {
     double? depth,
     double? height,
     double? elevation,
-  })  : id = id ?? newId(),
-        width = width ?? fixtureSpecs[type]!.w,
-        depth = depth ?? fixtureSpecs[type]!.d,
-        height = height ?? fixtureSpecs[type]!.h,
-        elevation = elevation ?? fixtureSpecs[type]!.elevation;
+  }) : id = id ?? newId(),
+       width = width ?? fixtureSpecs[type]!.w,
+       depth = depth ?? fixtureSpecs[type]!.d,
+       height = height ?? fixtureSpecs[type]!.h,
+       elevation = elevation ?? fixtureSpecs[type]!.elevation;
 
   String get label => fixtureSpecs[type]!.label;
 
@@ -227,15 +223,15 @@ class Fixture {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'pos': _pt(pos),
-        'rot': rotation,
-        'w': width,
-        'd': depth,
-        'h': height,
-        'el': elevation,
-      };
+    'id': id,
+    'type': type.name,
+    'pos': _pt(pos),
+    'rot': rotation,
+    'w': width,
+    'd': depth,
+    'h': height,
+    'el': elevation,
+  };
 
   factory Fixture.fromJson(Map<String, dynamic> j) {
     final t = FixtureType.values.byName(j['type'] as String);
@@ -276,12 +272,12 @@ class Project {
     this.groutMm = 2,
     this.wastePct = 10,
     DateTime? updated,
-  })  : id = id ?? newId(),
-        points = points ?? [],
-        walls = walls ?? [],
-        floor = floor ?? SurfaceTiling(),
-        fixtures = fixtures ?? [],
-        updated = updated ?? DateTime.now() {
+  }) : id = id ?? newId(),
+       points = points ?? [],
+       walls = walls ?? [],
+       floor = floor ?? SurfaceTiling(),
+       fixtures = fixtures ?? [],
+       updated = updated ?? DateTime.now() {
     syncWalls();
   }
 
@@ -302,30 +298,30 @@ class Project {
   double wallLength(int i) => (wallEnd(i) - wallStart(i)).distance;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'pts': points.map(_pt).toList(),
-        'closed': closed,
-        'walls': walls.map((w) => w.toJson()).toList(),
-        'floor': floor.toJson(),
-        'fixtures': fixtures.map((f) => f.toJson()).toList(),
-        'grout': groutMm,
-        'waste': wastePct,
-        'updated': updated.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'pts': points.map(_pt).toList(),
+    'closed': closed,
+    'walls': walls.map((w) => w.toJson()).toList(),
+    'floor': floor.toJson(),
+    'fixtures': fixtures.map((f) => f.toJson()).toList(),
+    'grout': groutMm,
+    'waste': wastePct,
+    'updated': updated.toIso8601String(),
+  };
 
   factory Project.fromJson(Map<String, dynamic> j) => Project(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Room',
-        points: ((j['pts'] as List?) ?? []).map(_off).toList(),
-        closed: j['closed'] as bool? ?? false,
-        walls: ((j['walls'] as List?) ?? []).map((e) => Wall.fromJson(e as Map<String, dynamic>)).toList(),
-        floor: SurfaceTiling.fromJson(j['floor'] as Map<String, dynamic>?),
-        fixtures: ((j['fixtures'] as List?) ?? []).map((e) => Fixture.fromJson(e as Map<String, dynamic>)).toList(),
-        groutMm: _d(j['grout'], 2),
-        wastePct: _d(j['waste'], 10),
-        updated: DateTime.tryParse(j['updated'] as String? ?? ''),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Room',
+    points: ((j['pts'] as List?) ?? []).map(_off).toList(),
+    closed: j['closed'] as bool? ?? false,
+    walls: ((j['walls'] as List?) ?? []).map((e) => Wall.fromJson(e as Map<String, dynamic>)).toList(),
+    floor: SurfaceTiling.fromJson(j['floor'] as Map<String, dynamic>?),
+    fixtures: ((j['fixtures'] as List?) ?? []).map((e) => Fixture.fromJson(e as Map<String, dynamic>)).toList(),
+    groutMm: _d(j['grout'], 2),
+    wastePct: _d(j['waste'], 10),
+    updated: DateTime.tryParse(j['updated'] as String? ?? ''),
+  );
 
   Project clone() => Project.fromJson(toJson());
 }

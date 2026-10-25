@@ -21,8 +21,15 @@ Paint? tilePaint(AppStore store, String tileId, double groutMm, Offset origin, {
 }
 
 /// Paints a surface's tiling: base, regions, then holes on top.
-void paintSurface(Canvas c, AppStore store, SurfaceModel s, double groutMm,
-    {required Color plain, bool flipY = false, Color holeColor = Colors.white}) {
+void paintSurface(
+  Canvas c,
+  AppStore store,
+  SurfaceModel s,
+  double groutMm, {
+  required Color plain,
+  bool flipY = false,
+  Color holeColor = Colors.white,
+}) {
   final basePath = Path()..addPolygon(s.base, true);
   c.save();
   c.clipPath(basePath);

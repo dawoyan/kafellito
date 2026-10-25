@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 /// Lets the user frame one tile in a photo. Returns PNG bytes of the crop.
 class CropScreen extends StatefulWidget {
   final Uint8List bytes;
@@ -114,8 +116,12 @@ class _CropScreenState extends State<CropScreen> {
     final w = math.max(1, (_crop.width * s).round()), h = math.max(1, (_crop.height * s).round());
     final rec = ui.PictureRecorder();
     final c = Canvas(rec);
-    c.drawImageRect(img, _crop, Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-        Paint()..filterQuality = FilterQuality.high);
+    c.drawImageRect(
+      img,
+      _crop,
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      Paint()..filterQuality = FilterQuality.high,
+    );
     final out = await rec.endRecording().toImage(w, h);
     final data = await out.toByteData(format: ui.ImageByteFormat.png);
     if (!mounted) return;
@@ -127,33 +133,38 @@ class _CropScreenState extends State<CropScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Frame one tile'),
+        title: Text(tr('Frame one tile')),
         actions: [
           if (widget.aspect != null)
             IconButton(
-              tooltip: _lock ? 'Unlock shape' : 'Lock to tile size',
+              tooltip: _lock ? tr('Unlock shape') : tr('Lock to tile size'),
               icon: Icon(_lock ? Icons.lock : Icons.lock_open),
               onPressed: () => setState(() => _lock = !_lock),
             ),
-          TextButton(onPressed: _image == null || _busy ? null : _done, child: const Text('Use')),
+          TextButton(onPressed: _image == null || _busy ? null : _done, child: Text(tr('Use'))),
         ],
       ),
       body: _image == null
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(builder: (context, cons) {
-              final size = cons.biggest;
-              return GestureDetector(
-                onPanStart: (d) => _onStart(d.localPosition, size),
-                onPanUpdate: (d) => _onUpdate(d.localPosition, size),
-                onPanEnd: (_) => _handle = null,
-                child: CustomPaint(size: size, painter: _CropPainter(_image!, _crop, _fit(size))),
-              );
-            }),
-      bottomNavigationBar: const SafeArea(
+          : LayoutBuilder(
+              builder: (context, cons) {
+                final size = cons.biggest;
+                return GestureDetector(
+                  onPanStart: (d) => _onStart(d.localPosition, size),
+                  onPanUpdate: (d) => _onUpdate(d.localPosition, size),
+                  onPanEnd: (_) => _handle = null,
+                  child: CustomPaint(size: size, painter: _CropPainter(_image!, _crop, _fit(size))),
+                );
+              },
+            ),
+      bottomNavigationBar: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(12),
-          child: Text('Drag the corners so the box covers exactly one tile.',
-              textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+          child: Text(
+            tr('Drag the corners so the box covers exactly one tile.'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70),
+          ),
         ),
       ),
     );
@@ -179,16 +190,23 @@ class _CropPainter extends CustomPainter {
       ..addRect(crop);
     canvas.drawPath(shade, Paint()..color = const Color(0x99000000));
     final s = 1 / fit.scale;
-    canvas.drawRect(crop, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2 * s
-      ..color = Colors.white);
-    for (final c in [crop.topLeft, crop.topRight, crop.bottomRight, crop.bottomLeft]) {
-      canvas.drawCircle(c, 9 * s, Paint()..color = Colors.white);
-      canvas.drawCircle(c, 9 * s, Paint()
+    canvas.drawRect(
+      crop,
+      Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2 * s
-        ..color = Colors.teal);
+        ..color = Colors.white,
+    );
+    for (final c in [crop.topLeft, crop.topRight, crop.bottomRight, crop.bottomLeft]) {
+      canvas.drawCircle(c, 9 * s, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        c,
+        9 * s,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2 * s
+          ..color = Colors.teal,
+      );
     }
     canvas.restore();
   }

@@ -11,6 +11,7 @@ import '../surfaces.dart';
 import 'common.dart';
 import 'dialogs.dart';
 import 'surface_paint.dart';
+import '../i18n.dart';
 
 /// Top view of the room. Tap to place corners; double-tap a corner, wall,
 /// floor or fixture to edit it.
@@ -251,9 +252,7 @@ class PlanEditorState extends State<PlanEditor> {
       _change(() {
         final sx = b.width == 0 ? 1.0 : r.width / b.width, sy = b.height == 0 ? 1.0 : r.height / b.height;
         if ((sx - 1).abs() > 1e-4 || (sy - 1).abs() > 1e-4) {
-          p.points = [
-            for (final q in p.points) Offset(b.left + (q.dx - b.left) * sx, b.top + (q.dy - b.top) * sy),
-          ];
+          p.points = [for (final q in p.points) Offset(b.left + (q.dx - b.left) * sx, b.top + (q.dy - b.top) * sy)];
         }
         p.floor.tileId = r.tileId;
       });
@@ -267,7 +266,12 @@ class PlanEditorState extends State<PlanEditor> {
     final pi = _hitPoint(s);
     if (pi >= 0) {
       if (p.closed && p.points.length <= 3) return;
-      final ok = await confirm(context, 'Remove corner?', 'The two walls next to it become one.', ok: 'Remove');
+      final ok = await confirm(
+        context,
+        tr('Remove corner?'),
+        tr('The two walls next to it become one.'),
+        ok: tr('Remove'),
+      );
       if (ok) {
         _change(() {
           p.points.removeAt(pi);
@@ -284,11 +288,18 @@ class PlanEditorState extends State<PlanEditor> {
       _change(() {
         p.points.insert(e + 1, snapTo(a + ab * t, 1));
         final old = p.walls[e];
-        p.walls.insert(e + 1, Wall(height: old.height, tiling: SurfaceTiling(tileId: old.tiling.tileId)));
+        p.walls.insert(
+          e + 1,
+          Wall(
+            height: old.height,
+            tiling: SurfaceTiling(tileId: old.tiling.tileId),
+          ),
+        );
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Corner added. Drag it into place.'), duration: Duration(seconds: 2)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Corner added. Drag it into place.')), duration: Duration(seconds: 2)),
+        );
       }
     }
   }
@@ -366,45 +377,47 @@ class PlanEditorState extends State<PlanEditor> {
   @override
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
-    return LayoutBuilder(builder: (context, cons) {
-      _size = cons.biggest;
-      if (!_fitted) {
-        _fitted = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) => fit());
-      }
-      return Listener(
-        onPointerSignal: (e) {
-          // Mouse wheel zoom, handy in the web preview.
-          if (e is PointerScrollEvent) {
-            final planAt = toPlan(e.localPosition);
-            setState(() {
-              _scale = (_scale * (e.scrollDelta.dy > 0 ? 0.9 : 1.1)).clamp(0.05, 30.0);
-              _pan = e.localPosition - planAt * _scale;
-            });
-          }
-        },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapUp: _onTapUp,
-          onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
-          onDoubleTap: _onDoubleTap,
-          onLongPressStart: _onLongPress,
-          onScaleStart: _onScaleStart,
-          onScaleUpdate: _onScaleUpdate,
-          onScaleEnd: _onScaleEnd,
-          child: CustomPaint(
-            size: _size,
-            painter: _PlanPainter(
-              project: p,
-              store: store,
-              scale: _scale,
-              pan: _pan,
-              selectedFixture: _selectedFixture,
+    return LayoutBuilder(
+      builder: (context, cons) {
+        _size = cons.biggest;
+        if (!_fitted) {
+          _fitted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) => fit());
+        }
+        return Listener(
+          onPointerSignal: (e) {
+            // Mouse wheel zoom, handy in the web preview.
+            if (e is PointerScrollEvent) {
+              final planAt = toPlan(e.localPosition);
+              setState(() {
+                _scale = (_scale * (e.scrollDelta.dy > 0 ? 0.9 : 1.1)).clamp(0.05, 30.0);
+                _pan = e.localPosition - planAt * _scale;
+              });
+            }
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: _onTapUp,
+            onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
+            onDoubleTap: _onDoubleTap,
+            onLongPressStart: _onLongPress,
+            onScaleStart: _onScaleStart,
+            onScaleUpdate: _onScaleUpdate,
+            onScaleEnd: _onScaleEnd,
+            child: CustomPaint(
+              size: _size,
+              painter: _PlanPainter(
+                project: p,
+                store: store,
+                scale: _scale,
+                pan: _pan,
+                selectedFixture: _selectedFixture,
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -425,10 +438,20 @@ class _PlanPainter extends CustomPainter {
 
   Offset sc(Offset c) => pan + c * scale;
 
-  void _text(Canvas canvas, String s, Offset at,
-      {double size = 12, Color color = const Color(0xFF263238), bool bg = true, FontWeight weight = FontWeight.w500}) {
+  void _text(
+    Canvas canvas,
+    String s,
+    Offset at, {
+    double size = 12,
+    Color color = const Color(0xFF263238),
+    bool bg = true,
+    FontWeight weight = FontWeight.w500,
+  }) {
     final tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(fontSize: size, color: color, fontWeight: weight)),
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: size, color: color, fontWeight: weight),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     final r = Rect.fromCenter(center: at, width: tp.width + 8, height: tp.height + 2);
@@ -461,21 +484,34 @@ class _PlanPainter extends CustomPainter {
     for (var i = 0; i < p.edgeCount; i++) {
       final a = sc(p.wallStart(i)), b = sc(p.wallEnd(i));
       final w = p.walls[i];
-      final tile = store.tile(w.tiling.tileId) ??
+      final tile =
+          store.tile(w.tiling.tileId) ??
           (w.tiling.regions.isNotEmpty ? store.tile(w.tiling.regions.first.tileId) : null);
       if (w.tiling.isTiled) {
-        canvas.drawLine(a, b, Paint()
-          ..color = const Color(0xFF263238)
-          ..strokeWidth = 9
-          ..strokeCap = StrokeCap.round);
-        canvas.drawLine(a, b, Paint()
-          ..color = tile?.color ?? const Color(0xFF90A4AE)
-          ..strokeWidth = 6
-          ..strokeCap = StrokeCap.round);
+        canvas.drawLine(
+          a,
+          b,
+          Paint()
+            ..color = const Color(0xFF263238)
+            ..strokeWidth = 9
+            ..strokeCap = StrokeCap.round,
+        );
+        canvas.drawLine(
+          a,
+          b,
+          Paint()
+            ..color = tile?.color ?? const Color(0xFF90A4AE)
+            ..strokeWidth = 6
+            ..strokeCap = StrokeCap.round,
+        );
       } else {
-        canvas.drawLine(a, b, Paint()
-          ..color = const Color(0xFF455A64)
-          ..strokeWidth = 1.6);
+        canvas.drawLine(
+          a,
+          b,
+          Paint()
+            ..color = const Color(0xFF455A64)
+            ..strokeWidth = 1.6,
+        );
       }
       _openings(canvas, i);
     }
@@ -493,8 +529,15 @@ class _PlanPainter extends CustomPainter {
       final mid = sc((a + b) / 2) - n * 18;
       _text(canvas, fmtNum((len * 10).roundToDouble() / 10), mid);
       if (p.closed) {
-        _text(canvas, 'W${i + 1}', sc((a + b) / 2) + n * 16,
-            size: 10, color: const Color(0xFF607D8B), bg: false, weight: FontWeight.w600);
+        _text(
+          canvas,
+          tr('W{n}', {'n': i + 1}),
+          sc((a + b) / 2) + n * 16,
+          size: 10,
+          color: const Color(0xFF607D8B),
+          bg: false,
+          weight: FontWeight.w600,
+        );
       }
     }
     if (pts.length >= 3) {
@@ -512,8 +555,14 @@ class _PlanPainter extends CustomPainter {
         final rounded = (ang * 10).roundToDouble() / 10;
         final txt = '${fmtNum(rounded)}°';
         final isRight = (rounded - 90).abs() < 0.05 || (rounded - 270).abs() < 0.05;
-        _text(canvas, txt, sc(pts[i]) + bis * 26,
-            size: 10, color: isRight ? const Color(0xFF90A4AE) : const Color(0xFFD84315), bg: false);
+        _text(
+          canvas,
+          txt,
+          sc(pts[i]) + bis * 26,
+          size: 10,
+          color: isRight ? const Color(0xFF90A4AE) : const Color(0xFFD84315),
+          bg: false,
+        );
       }
     }
 
@@ -522,10 +571,14 @@ class _PlanPainter extends CustomPainter {
       final s = sc(pts[i]);
       final first = !p.closed && i == 0 && pts.length >= 3;
       canvas.drawCircle(s, first ? 10 : 6, Paint()..color = first ? const Color(0xFF1F6F78) : Colors.white);
-      canvas.drawCircle(s, first ? 10 : 6, Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = const Color(0xFF1F6F78));
+      canvas.drawCircle(
+        s,
+        first ? 10 : 6,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = const Color(0xFF1F6F78),
+      );
     }
   }
 
@@ -540,14 +593,22 @@ class _PlanPainter extends CustomPainter {
       final x0 = o.x.clamp(0.0, len), x1 = (o.x + o.width).clamp(0.0, len);
       final s0 = sc(a + dir * x0), s1 = sc(a + dir * x1);
       if (o.type == OpeningType.door) {
-        canvas.drawLine(s0, s1, Paint()
-          ..color = const Color(0xFFF7F8F6)
-          ..strokeWidth = 11);
+        canvas.drawLine(
+          s0,
+          s1,
+          Paint()
+            ..color = const Color(0xFFF7F8F6)
+            ..strokeWidth = 11,
+        );
         final r = (x1 - x0) * scale;
         final leaf = s0 + n * r;
-        canvas.drawLine(s0, leaf, Paint()
-          ..color = const Color(0xFF6D4C41)
-          ..strokeWidth = 2);
+        canvas.drawLine(
+          s0,
+          leaf,
+          Paint()
+            ..color = const Color(0xFF6D4C41)
+            ..strokeWidth = 2,
+        );
         final start = math.atan2(n.dy, n.dx);
         final sweepTo = math.atan2(dir.dy, dir.dx);
         var sweep = sweepTo - start;
@@ -557,17 +618,31 @@ class _PlanPainter extends CustomPainter {
         while (sweep < -math.pi) {
           sweep += 2 * math.pi;
         }
-        canvas.drawArc(Rect.fromCircle(center: s0, radius: r), start, sweep, false, Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = const Color(0xFF8D6E63));
+        canvas.drawArc(
+          Rect.fromCircle(center: s0, radius: r),
+          start,
+          sweep,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..color = const Color(0xFF8D6E63),
+        );
       } else {
-        canvas.drawLine(s0, s1, Paint()
-          ..color = const Color(0xFFE1F5FE)
-          ..strokeWidth = 8);
-        canvas.drawLine(s0, s1, Paint()
-          ..color = const Color(0xFF0288D1)
-          ..strokeWidth = 1.5);
+        canvas.drawLine(
+          s0,
+          s1,
+          Paint()
+            ..color = const Color(0xFFE1F5FE)
+            ..strokeWidth = 8,
+        );
+        canvas.drawLine(
+          s0,
+          s1,
+          Paint()
+            ..color = const Color(0xFF0288D1)
+            ..strokeWidth = 1.5,
+        );
       }
     }
   }

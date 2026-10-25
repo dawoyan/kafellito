@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'geometry.dart';
+import 'i18n.dart';
 import 'models.dart';
 
 /// Marks a point that is part of a surface but has no tile.
@@ -45,17 +46,17 @@ class SurfaceModel {
   Rect get bounds => boundsOf(base);
 
   static SurfaceModel floor(Project p) => SurfaceModel(
-        name: 'Floor',
-        base: p.points,
-        tiling: p.floor,
-        origin: p.points.isEmpty ? Offset.zero : boundsOf(p.points).topLeft,
-      );
+    name: tr('Floor'),
+    base: p.points,
+    tiling: p.floor,
+    origin: p.points.isEmpty ? Offset.zero : boundsOf(p.points).topLeft,
+  );
 
   static SurfaceModel wall(Project p, int i) {
     final w = p.walls[i];
     final len = p.wallLength(i);
     return SurfaceModel(
-      name: 'Wall ${i + 1}',
+      name: tr('Wall {n}', {'n': i + 1}),
       base: [Offset.zero, Offset(len, 0), Offset(len, w.height), Offset(0, w.height)],
       tiling: w.tiling,
       holes: w.openings.map((o) => o.rect).toList(),
@@ -64,9 +65,9 @@ class SurfaceModel {
   }
 
   static List<SurfaceModel> all(Project p) => [
-        if (p.closed && p.points.length >= 3) floor(p),
-        for (var i = 0; i < p.edgeCount; i++) wall(p, i),
-      ];
+    if (p.closed && p.points.length >= 3) floor(p),
+    for (var i = 0; i < p.edgeCount; i++) wall(p, i),
+  ];
 }
 
 class TileCount {
@@ -89,10 +90,7 @@ Map<String, TileCount> countTiles(Project project, Map<String, Tile> tiles) {
   final result = <String, TileCount>{};
   final grout = project.groutMm / 10;
   for (final s in SurfaceModel.all(project)) {
-    final used = <String>{
-      if (s.tiling.tileId != null) s.tiling.tileId!,
-      ...s.tiling.regions.map((r) => r.tileId),
-    };
+    final used = <String>{if (s.tiling.tileId != null) s.tiling.tileId!, ...s.tiling.regions.map((r) => r.tileId)};
     for (final id in used) {
       final tile = tiles[id];
       if (tile == null || tile.widthCm <= 0 || tile.heightCm <= 0) continue;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../store.dart';
 import '../widgets/common.dart';
 import 'tile_edit_screen.dart';
+import '../i18n.dart';
 
 class TileLibraryView extends StatelessWidget {
   const TileLibraryView({super.key});
@@ -11,12 +12,16 @@ class TileLibraryView extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
     if (store.tiles.isEmpty) {
-      return const Center(child: Text('No tiles yet. Tap + to photograph one.'));
+      return Center(child: Text(tr('No tiles yet. Tap + to photograph one.')));
     }
     return GridView.builder(
       padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 200, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.82),
+        maxCrossAxisExtent: 200,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.82,
+      ),
       itemCount: store.tiles.length,
       itemBuilder: (context, i) {
         final t = store.tiles[i];
@@ -27,16 +32,26 @@ class TileLibraryView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: LayoutBuilder(builder: (c, cons) => TileSwatch(t, size: cons.maxWidth))),
+                Expanded(
+                  child: LayoutBuilder(builder: (c, cons) => TileSwatch(t, size: cons.maxWidth)),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.name.isEmpty ? 'Tile' : t.name,
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall),
-                      Text('${t.code.isEmpty ? '—' : t.code} · ${fmtCm(t.widthCm)}×${fmtCm(t.heightCm)} cm',
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        t.name.isEmpty ? tr('Tile') : t.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      Text(
+                        '${t.code.isEmpty ? '—' : t.code} · ${fmtCm(t.widthCm)}×${fmtCm(t.heightCm)} ${tr('cm')}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
