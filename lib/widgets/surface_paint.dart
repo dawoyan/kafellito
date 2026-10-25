@@ -33,12 +33,17 @@ void paintSurface(
   final basePath = Path()..addPolygon(s.base, true);
   c.save();
   c.clipPath(basePath);
-  final bp = s.tiling.tileId == null ? null : tilePaint(store, s.keyOfLayer(-1), s.origin, flipY: flipY, flipX: flipX);
-  c.drawPath(basePath, bp ?? (Paint()..color = plain));
+  final tiles = store.tileMap;
+  Paint? paintOf(int layer) {
+    final l = s.layout(layer, tiles);
+    return l == null ? null : tilePaint(store, l.key, l.origin, flipY: flipY, flipX: flipX);
+  }
+
+  c.drawPath(basePath, paintOf(-1) ?? (Paint()..color = plain));
   for (var i = 0; i < s.tiling.regions.length; i++) {
     final r = s.tiling.regions[i];
     if (r.points.length < 3) continue;
-    final p = tilePaint(store, s.keyOfLayer(i), s.origin, flipY: flipY, flipX: flipX);
+    final p = paintOf(i);
     if (p != null) c.drawPath(Path()..addPolygon(r.points, true), p);
   }
   for (final h in s.holes) {

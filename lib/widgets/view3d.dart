@@ -60,7 +60,7 @@ class _RoomMesh {
   final List<_Face> faces;
   _RoomMesh(this.surfaces, this.faces);
 
-  static _RoomMesh build(Project p) {
+  static _RoomMesh build(Project p, Map<String, Tile> tiles) {
     final surfaces = <_SurfaceMesh>[];
     final light = const Offset(0.6, -0.8);
     for (final s in SurfaceModel.all(p)) {
@@ -73,14 +73,19 @@ class _RoomMesh {
         return _w(a + dir * q.dx, q.dy);
       }
 
-      // Mirrored walls run right to left from inside; flip u so photos read correctly.
-      Offset uvOf(Offset q) => s.isFloor ? q - s.origin : Offset(s.mirrored ? -q.dx : q.dx, -q.dy);
+      final origins = {for (var l = -1; l < s.tiling.regions.length; l++) l: s.layout(l, tiles)?.origin ?? s.origin};
+      // Texture space starts at the layer's whole-tile corner. Walls run up and,
+      // when mirrored, right to left from inside; flip so photos read correctly.
+      Offset uvOf(Offset q, int layer) {
+        final d = q - origins[layer]!;
+        return s.isFloor ? d : Offset(s.mirrored ? -d.dx : d.dx, -d.dy);
+      }
 
       void cell(Rect r, int depth) {
-        final samples = <String?>[];
+        final samples = <int?>[];
         for (var a = 0; a < 3; a++) {
           for (var b = 0; b < 3; b++) {
-            samples.add(s.classify(Offset(r.left + r.width * (0.02 + 0.48 * a), r.top + r.height * (0.02 + 0.48 * b))));
+            samples.add(s.layerAt(Offset(r.left + r.width * (0.02 + 0.48 * a), r.top + r.height * (0.02 + 0.48 * b))));
           }
         }
         final uniform = samples.every((k) => k == samples.first);
@@ -92,10 +97,10 @@ class _RoomMesh {
           cell(Rect.fromLTRB(c.dx, c.dy, r.right, r.bottom), depth + 1);
           return;
         }
-        final key = uniform ? samples.first : samples[4];
-        if (key == null) return;
+        final layer = uniform ? samples.first : samples[4];
+        if (layer == null) return;
         final pts = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft];
-        quads.add(_Quad(pts.map(toWorld).toList(), pts.map(uvOf).toList(), key));
+        quads.add(_Quad(pts.map(toWorld).toList(), [for (final q in pts) uvOf(q, layer)], s.keyOfLayer(layer)));
       }
 
       final b = s.bounds;
@@ -111,11 +116,9 @@ class _RoomMesh {
           if (r.width <= 0 || r.height <= 0) continue;
           final pts = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft];
           quads.add(
-            _Quad(
-              pts.map(toWorld).toList(),
-              pts.map(uvOf).toList(),
-              o.type == OpeningType.door ? _doorKey : _windowKey,
-            ),
+            _Quad(pts.map(toWorld).toList(), [
+              for (final q in pts) uvOf(q, -1),
+            ], o.type == OpeningType.door ? _doorKey : _windowKey),
           );
         }
       }
@@ -276,34 +279,7 @@ class _Room3DViewState extends State<Room3DView> {
         target = (p.wallStart(i) + p.wallEnd(i)) / 2;
       }
     }
-    final b = boundsOf(p.points);
-    final step = math.max(5.0, math.max(b.width, b.height) / 40);
-    Offset? pick;
-    var pickScore = -1.0;
-    for (var x = b.left; x <= b.right; x += step) {
-      for (var y = b.top; y <= b.bottom; y += step) {
-        final q = Offset(x, y);
-        if (!pointInPolygon(q, p.points)) continue;
-        var clear = double.infinity;
-        for (var i = 0; i < p.edgeCount; i++) {
-          clear = math.min(clear, distToSegment(q, p.wallStart(i), p.wallEnd(i)));
-        }
-        if (clear < 25) continue;
-        if (p.fixtures.any((f) => f.elevation < 150 && f.contains(q))) continue;
-        final near = p.fixtures
-            .where((f) => f.elevation < 150)
-            .fold<double>(
-              double.infinity,
-              (m, f) => math.min(m, (f.pos - q).distance - math.max(f.width, f.depth) / 2),
-            );
-        if (near < 20) continue;
-        final score = (q - target).distance;
-        if (score > pickScore) {
-          pickScore = score;
-          pick = q;
-        }
-      }
-    }
+    final pick = _clearSpotFarFrom(p, target);
     if (pick == null) return c;
     _lookAt = target;
     return pick;
@@ -351,7 +327,7 @@ class _Room3DViewState extends State<Room3DView> {
       return Center(child: Text(tr('Finish the room plan to see it in 3D.')));
     }
     if (_mesh == null || _meshRev != widget.revision) {
-      _mesh = _RoomMesh.build(p);
+      _mesh = _RoomMesh.build(p, store.tileMap);
       _meshRev = widget.revision;
     }
     return Stack(
@@ -471,6 +447,76 @@ class _Pad extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The free spot in the room farthest from [target], clear of walls and of
+/// fixtures one could not stand in.
+Offset? _clearSpotFarFrom(Project p, Offset target) {
+  final b = boundsOf(p.points);
+  final step = math.max(5.0, math.max(b.width, b.height) / 40);
+  Offset? pick;
+  var pickScore = -1.0;
+  for (var x = b.left; x <= b.right; x += step) {
+    for (var y = b.top; y <= b.bottom; y += step) {
+      final q = Offset(x, y);
+      if (!pointInPolygon(q, p.points)) continue;
+      var clear = double.infinity;
+      for (var i = 0; i < p.edgeCount; i++) {
+        clear = math.min(clear, distToSegment(q, p.wallStart(i), p.wallEnd(i)));
+      }
+      if (clear < 25) continue;
+      if (p.fixtures.any((f) => f.elevation < 150 && f.contains(q))) continue;
+      final near = p.fixtures
+          .where((f) => f.elevation < 150)
+          .fold<double>(double.infinity, (m, f) => math.min(m, (f.pos - q).distance - math.max(f.width, f.depth) / 2));
+      if (near < 20) continue;
+      final score = (q - target).distance;
+      if (score > pickScore) {
+        pickScore = score;
+        pick = q;
+      }
+    }
+  }
+  return pick;
+}
+
+/// Pictures of the room for export: from inside facing each of the [inside]
+/// longest walls, then an overview from above. Names say which wall is shown.
+Future<List<(String, ui.Image)>> render3DViews(
+  Project p,
+  AppStore store, {
+  Size size = const Size(1600, 1200),
+  int inside = 3,
+}) async {
+  if (!p.closed || p.points.length < 3) return [];
+  final mesh = _RoomMesh.build(p, store.tileMap);
+  for (final key in {
+    for (final s in mesh.surfaces)
+      for (final q in s.quads) q.key,
+  }) {
+    await store.loadTexture(key);
+  }
+  Future<ui.Image> draw(_Camera cam) {
+    final rec = ui.PictureRecorder();
+    _RoomPainter(mesh, cam, store).paint(Canvas(rec), size);
+    return rec.endRecording().toImage(size.width.round(), size.height.round());
+  }
+
+  final c = centroid(p.points);
+  final walls = [for (var i = 0; i < p.edgeCount; i++) i]..sort((a, b) => p.wallLength(b).compareTo(p.wallLength(a)));
+  final out = <(String, ui.Image)>[];
+  for (final i in walls.take(inside)) {
+    final target = (p.wallStart(i) + p.wallEnd(i)) / 2;
+    final eye = _clearSpotFarFrom(p, target) ?? c;
+    final d = target - eye;
+    out.add(('wall-${i + 1}', await draw(_Camera(_w(eye, 160), math.atan2(d.dx, -d.dy), -0.12))));
+  }
+  final b = boundsOf(p.points);
+  final top = walls.isEmpty ? Offset.zero : (p.wallStart(walls.first) + p.wallEnd(walls.first)) / 2 - c;
+  final cam = _Camera(Vector3.zero(), math.atan2(top.dx, -top.dy) + 0.6, -0.75);
+  cam.eye = _w(c, 60) - cam.forward * (math.max(b.width, b.height) * 1.15 + 120);
+  out.add(('overview', await draw(cam)));
+  return out;
 }
 
 class _Buf {

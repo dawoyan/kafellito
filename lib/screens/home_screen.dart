@@ -24,24 +24,64 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _newRoom() async {
     final store = AppScope.read(context);
     final ctrl = TextEditingController(text: tr('Room {n}', {'n': store.projects.length + 1}));
+    String? collection;
     final name = await showDialog<String>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text(tr('New room')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(labelText: tr('Name')),
-          onSubmitted: (v) => Navigator.pop(c, v),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setState) => AlertDialog(
+          title: Text(tr('New room')),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  decoration: InputDecoration(labelText: tr('Name')),
+                  onSubmitted: (v) => Navigator.pop(c, v),
+                ),
+                if (store.collections.isNotEmpty) ...[
+                  gap(16),
+                  Text(tr('Tile collection'), style: Theme.of(c).textTheme.bodySmall),
+                  gap(6),
+                  SizedBox(
+                    height: 96,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (final col in store.collections)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: CollectionCard(
+                              col,
+                              selected: collection == col.id,
+                              onTap: () => setState(() => collection = collection == col.id ? null : col.id),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  gap(4),
+                  Text(tr('Laid automatically when you close the plan.'), style: Theme.of(c).textTheme.bodySmall),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Create'))),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Create'))),
-        ],
       ),
     );
     if (name == null || !mounted) return;
-    final p = Project(name: name.trim().isEmpty ? tr('Room') : name.trim(), groutMm: store.defaultGapMm);
+    final p = Project(
+      name: name.trim().isEmpty ? tr('Room') : name.trim(),
+      groutMm: store.defaultGapMm,
+      collectionId: collection,
+    );
     store.upsertProject(p);
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProjectScreen(projectId: p.id)));
   }
@@ -146,6 +186,7 @@ class _RoomCard extends StatelessWidget {
                   } else if (v == 'copy') {
                     final c = p.clone()
                       ..id = newId()
+                      ..trialBase = null
                       ..name = tr('{name} copy', {'name': p.name});
                     store.upsertProject(c);
                   }

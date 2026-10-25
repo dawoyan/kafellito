@@ -144,7 +144,17 @@ class PlanEditorState extends State<PlanEditor> {
 
   void closeRoom() {
     if (p.points.length < 3) return;
-    _change(() => p.closed = true);
+    _change(_close);
+  }
+
+  /// Closes the plan and, the first time, lays the room's chosen collection.
+  void _close() {
+    p.closed = true;
+    p.syncWalls();
+    final store = AppScope.read(context);
+    final c = store.collection(p.collectionId);
+    final untiled = !p.floor.isTiled && p.walls.every((w) => !w.tiling.isTiled);
+    if (c != null && untiled) applyCollection(p, c, store.tileMap);
   }
 
   void removeLastPoint() {

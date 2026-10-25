@@ -12,57 +12,239 @@ class TileLibraryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
-    if (store.tiles.isEmpty) {
-      return Center(child: Text(tr('No tiles yet. Tap + to photograph one.')));
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 200,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.82,
-      ),
-      itemCount: store.tiles.length,
-      itemBuilder: (context, i) {
-        final t = store.tiles[i];
-        return Card(
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => openTile(context, t),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    final theme = Theme.of(context);
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            child: Row(
               children: [
-                Expanded(
-                  child: LayoutBuilder(builder: (c, cons) => TileSwatch(t, size: cons.maxWidth)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.name.isEmpty ? tr('Tile') : t.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      Text(
-                        '${t.code.isEmpty ? '—' : t.code} · ${fmtCm(t.widthCm)}×${fmtCm(t.heightCm)} ${tr('cm')}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                Expanded(child: Text(tr('Collections'), style: theme.textTheme.titleMedium)),
+                TextButton.icon(
+                  onPressed: () => showCollectionDialog(context, null),
+                  icon: const Icon(Icons.add),
+                  label: Text(tr('New collection')),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+        if (store.collections.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                tr('Group a wall, floor and decor tile to lay a whole room at once.'),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          )
+        else
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 92,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                children: [
+                  for (final c in store.collections)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: CollectionCard(c, onTap: () => showCollectionDialog(context, c)),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(tr('Tiles'), style: theme.textTheme.titleMedium),
+          ),
+        ),
+        if (store.tiles.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(child: Text(tr('No tiles yet. Tap + to photograph one.'))),
+            ),
+          ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+          sliver: SliverGrid.builder(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 200,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.82,
+            ),
+            itemCount: store.tiles.length,
+            itemBuilder: (context, i) {
+              final t = store.tiles[i];
+              return Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => openTile(context, t),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(builder: (c, cons) => TileSwatch(t, size: cons.maxWidth)),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.name.isEmpty ? tr('Tile') : t.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            Text(
+                              '${t.code.isEmpty ? '—' : t.code} · ${fmtCm(t.widthCm)}×${fmtCm(t.heightCm)} ${tr('cm')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
+}
+
+/// A collection shown as its wall, floor and decor swatches with its name.
+class CollectionCard extends StatelessWidget {
+  final TileCollection c;
+  final VoidCallback? onTap;
+  final bool selected;
+  const CollectionCard(this.c, {super.key, this.onTap, this.selected = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context);
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: selected
+          ? RoundedRectangleBorder(
+              side: BorderSide(color: theme.colorScheme.primary, width: 2),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final id in [c.wallTileId, c.floorTileId, c.decorTileId])
+                    Padding(padding: const EdgeInsets.only(right: 4), child: TileSwatch(store.tile(id), size: 34)),
+                ],
+              ),
+              gap(6),
+              SizedBox(
+                width: 112,
+                child: Text(
+                  c.name.isEmpty ? tr('Collection') : c.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Creates ([c] null) or edits a tile collection.
+Future<void> showCollectionDialog(BuildContext context, TileCollection? c) {
+  final store = AppScope.read(context);
+  final edit = c == null ? TileCollection() : TileCollection.fromJson(c.toJson());
+  final name = TextEditingController(text: edit.name);
+  final decorH = numCtrl(edit.decorHeightCm);
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(c == null ? tr('New collection') : tr('Collection')),
+        content: SizedBox(
+          width: 360,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: InputDecoration(labelText: tr('Name'), border: OutlineInputBorder(), isDense: true),
+                ),
+                gap(),
+                TilePicker(
+                  value: edit.wallTileId,
+                  label: tr('Wall tile'),
+                  onChanged: (v) => setState(() => edit.wallTileId = v),
+                ),
+                gap(),
+                TilePicker(
+                  value: edit.floorTileId,
+                  label: tr('Floor tile'),
+                  onChanged: (v) => setState(() => edit.floorTileId = v),
+                ),
+                gap(),
+                TilePicker(
+                  value: edit.decorTileId,
+                  label: tr('Decor tile'),
+                  onChanged: (v) => setState(() => edit.decorTileId = v),
+                ),
+                if (edit.decorTileId != null) ...[gap(), NumberField(decorH, tr('Decor band from floor'))],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          if (c != null)
+            TextButton(
+              onPressed: () {
+                store.deleteCollection(c.id);
+                Navigator.pop(ctx);
+              },
+              child: Text(tr('Delete')),
+            ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+          FilledButton(
+            onPressed: () {
+              edit
+                ..name = name.text.trim()
+                ..decorHeightCm = parseNum(decorH.text) ?? edit.decorHeightCm;
+              store.upsertCollection(edit);
+              Navigator.pop(ctx);
+            },
+            child: Text(tr('Save')),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Opens [t] for editing, or, when rooms use it, lists them so the user can

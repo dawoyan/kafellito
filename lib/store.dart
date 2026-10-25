@@ -23,13 +23,14 @@ class TileTexture {
 class AppStore extends ChangeNotifier {
   final List<Tile> tiles = [];
   final List<Project> projects = [];
+  final List<TileCollection> collections = [];
   bool loaded = false;
   String lang = 'en';
   double defaultGapMm = 2;
 
   final Map<String, TileTexture> _textures = {};
   final Map<String, String> _textureKeys = {};
-  final Set<String> _building = {};
+  final Map<String, Future<TileTexture>> _building = {};
   final Map<String, ui.Image> _photos = {};
   Timer? _saveTimer;
 
@@ -43,6 +44,9 @@ class AppStore extends ChangeNotifier {
         final j = jsonDecode(raw) as Map<String, dynamic>;
         tiles.addAll(((j['tiles'] as List?) ?? []).map((e) => Tile.fromJson(e as Map<String, dynamic>)));
         projects.addAll(((j['projects'] as List?) ?? []).map((e) => Project.fromJson(e as Map<String, dynamic>)));
+        collections.addAll(
+          ((j['collections'] as List?) ?? []).map((e) => TileCollection.fromJson(e as Map<String, dynamic>)),
+        );
         final s = j['settings'] as Map<String, dynamic>? ?? {};
         lang = s['lang'] as String? ?? 'en';
         defaultGapMm = (s['gap'] as num?)?.toDouble() ?? 2;
@@ -126,6 +130,7 @@ class AppStore extends ChangeNotifier {
       'settings': {'lang': lang, 'gap': defaultGapMm},
       'tiles': tiles.map((t) => t.toJson()).toList(),
       'projects': projects.map((p) => p.toJson()).toList(),
+      'collections': collections.map((c) => c.toJson()).toList(),
     });
     try {
       await saveData(json);
@@ -172,6 +177,31 @@ class AppStore extends ChangeNotifier {
     _counts.clear();
     for (final p in projects) {
       _strip(p, id);
+    }
+    for (final c in collections) {
+      if (c.wallTileId == id) c.wallTileId = null;
+      if (c.floorTileId == id) c.floorTileId = null;
+      if (c.decorTileId == id) c.decorTileId = null;
+    }
+    changed();
+  }
+
+  TileCollection? collection(String? id) => id == null ? null : collections.where((c) => c.id == id).firstOrNull;
+
+  void upsertCollection(TileCollection c) {
+    final i = collections.indexWhere((e) => e.id == c.id);
+    if (i >= 0) {
+      collections[i] = c;
+    } else {
+      collections.add(c);
+    }
+    changed();
+  }
+
+  void deleteCollection(String id) {
+    collections.removeWhere((c) => c.id == id);
+    for (final p in projects) {
+      if (p.collectionId == id) p.collectionId = null;
     }
     changed();
   }
@@ -228,16 +258,26 @@ class AppStore extends ChangeNotifier {
     final sig = '${t.widthCm}|${t.heightCm}|${t.colorValue}|${t.imageBase64?.length}';
     final tex = _textures[key];
     if (tex != null && _textureKeys[key] == sig) return tex;
-    if (!_building.contains('$key$sig')) {
-      _building.add('$key$sig');
-      _buildTexture(t, l.gapMm, l.rotated).then((value) {
+    if (!_building.containsKey('$key$sig')) {
+      _building['$key$sig'] = _buildTexture(t, l.gapMm, l.rotated).then((value) {
         _textures[key] = value;
         _textureKeys[key] = sig;
         _building.remove('$key$sig');
         notifyListeners();
+        return value;
       });
     }
     return tex;
+  }
+
+  /// Like [texture], but waits for it to be built.
+  Future<TileTexture?> loadTexture(String key) async {
+    final tex = texture(key);
+    if (tex != null) return tex;
+    final t = tileOfKey(key);
+    if (t == null) return null;
+    final sig = '${t.widthCm}|${t.heightCm}|${t.colorValue}|${t.imageBase64?.length}';
+    return await (_building['$key$sig'] ?? Future.value(_textures[key]));
   }
 
   final Map<String, (int, Map<String, TileCount>)> _counts = {};

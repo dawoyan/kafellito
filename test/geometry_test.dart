@@ -43,10 +43,15 @@ void main() {
   test('tile count on a 100x100 floor with 30x30 tiles', () {
     final tile = Tile(widthCm: 30, heightCm: 30);
     final p = Project(points: List.of(square), closed: true, groutMm: 0)..floor.tileId = tile.id;
-    final c = countTiles(p, {tile.id: tile})[tile.id]!;
+    // Centred by default: 20 | 30 | 30 | 20 each way.
+    var c = countTiles(p, {tile.id: tile})[tile.id]!;
+    expect(c.full, 4);
+    expect(c.cut, 12);
+    expect(c.areaCm2 / 10000, closeTo(1.0, 0.03));
+    p.floor.align = TileAlign.left;
+    c = countTiles(p, {tile.id: tile})[tile.id]!;
     expect(c.full, 9);
     expect(c.cut, 7);
-    expect(c.areaCm2 / 10000, closeTo(1.0, 0.03));
   });
 
   test('door is not tiled', () {

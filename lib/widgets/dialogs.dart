@@ -446,15 +446,19 @@ class LayoutChoice {
   String? tileId;
   double? gapMm;
   bool rotated;
-  LayoutChoice({this.tileId, this.gapMm, this.rotated = false});
+  TileAlign align;
+  LayoutChoice({this.tileId, this.gapMm, this.rotated = false, this.align = TileAlign.center});
 
-  factory LayoutChoice.ofBase(SurfaceTiling t) => LayoutChoice(tileId: t.tileId, gapMm: t.gapMm, rotated: t.rotated);
-  factory LayoutChoice.ofRegion(Region r) => LayoutChoice(tileId: r.tileId, gapMm: r.gapMm, rotated: r.rotated);
+  factory LayoutChoice.ofBase(SurfaceTiling t) =>
+      LayoutChoice(tileId: t.tileId, gapMm: t.gapMm, rotated: t.rotated, align: t.align);
+  factory LayoutChoice.ofRegion(Region r) =>
+      LayoutChoice(tileId: r.tileId, gapMm: r.gapMm, rotated: r.rotated, align: r.align);
 
   void applyToBase(SurfaceTiling t) => t
     ..tileId = tileId
     ..gapMm = gapMm
-    ..rotated = rotated;
+    ..rotated = rotated
+    ..align = align;
 
   /// A copy of [t] with this choice as its base tile.
   SurfaceTiling onBase(SurfaceTiling t) {
@@ -466,7 +470,8 @@ class LayoutChoice {
   void applyToRegion(Region r) => r
     ..tileId = tileId ?? r.tileId
     ..gapMm = gapMm
-    ..rotated = rotated;
+    ..rotated = rotated
+    ..align = align;
 }
 
 /// Picks a tile, its gap and direction, and shows how many tiles that layer
@@ -524,7 +529,9 @@ class _TileLayoutEditorState extends State<TileLayoutEditor> {
     final v = widget.value;
     final tile = store.tile(v.tileId);
     final theme = Theme.of(context);
-    final c = tile == null ? null : countLayer(widget.preview(), widget.layer, store.tileMap);
+    final model = widget.preview();
+    final floor = model.isFloor;
+    final c = tile == null ? null : countLayer(model, widget.layer, store.tileMap);
     final waste = widget.project.wastePct;
     final withWaste = c == null ? 0 : ((c.full + c.cut) * (1 + waste / 100)).ceil();
     final boxes = tile == null ? null : boxesFor(tile, withWaste);
@@ -566,6 +573,33 @@ class _TileLayoutEditorState extends State<TileLayoutEditor> {
               },
             ),
           ],
+          gap(),
+          Text(tr('Start tiling'), style: theme.textTheme.bodySmall),
+          gap(4),
+          SegmentedButton<TileAlign>(
+            showSelectedIcon: false,
+            segments: [
+              for (final a in TileAlign.values)
+                ButtonSegment(
+                  value: a,
+                  tooltip: _alignHint(a, floor),
+                  label: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: CustomPaint(
+                      size: const Size(52, 30),
+                      painter: AlignIconPainter(a, theme.colorScheme, down: floor),
+                    ),
+                  ),
+                ),
+            ],
+            selected: {v.align},
+            onSelectionChanged: (s) {
+              v.align = s.first;
+              _update();
+            },
+          ),
+          gap(4),
+          Text(_alignHint(v.align, floor), style: theme.textTheme.bodySmall),
           if (c != null) ...[
             gap(),
             Container(
@@ -602,3 +636,83 @@ class _TileLayoutEditorState extends State<TileLayoutEditor> {
 }
 
 String _count(int n, String word) => '$n ${plural(n, tr(word), tr('${word}s2'), tr('${word}s'))}';
+
+String _alignHint(TileAlign a, bool floor) => switch (a) {
+  TileAlign.left =>
+    floor
+        ? tr('Whole tile in the top left corner, then right and down')
+        : tr('Whole tile in the left corner on the floor, then right and up'),
+  TileAlign.right =>
+    floor
+        ? tr('Whole tile in the top right corner, then left and down')
+        : tr('Whole tile in the right corner on the floor, then left and up'),
+  TileAlign.center =>
+    floor
+        ? tr('Equal cut pieces on opposite sides, whole tiles between')
+        : tr('Equal cut pieces at both ends, whole tiles from the floor'),
+};
+
+/// Small drawing of a tile row for a [TileAlign] choice: whole tiles filled,
+/// cut pieces hatched, and an arrow for the laying direction.
+class AlignIconPainter extends CustomPainter {
+  final TileAlign align;
+  final ColorScheme colors;
+
+  /// Floors are laid downwards from the top of the plan, walls up from the floor.
+  final bool down;
+  AlignIconPainter(this.align, this.colors, {this.down = false});
+
+  @override
+  void paint(Canvas c, Size size) {
+    final whole = Paint()..color = colors.primary;
+    final cut = Paint()..color = colors.primary.withValues(alpha: 0.35);
+    final h = size.height * 0.45, top = size.height - h;
+    final widths = switch (align) {
+      TileAlign.left => [1.0, 1.0, 1.0, 0.45],
+      TileAlign.right => [0.45, 1.0, 1.0, 1.0],
+      TileAlign.center => [0.7, 1.0, 1.0, 0.7],
+    };
+    const g = 2.0;
+    final unit = (size.width - g * (widths.length - 1)) / widths.reduce((a, b) => a + b);
+    var x = 0.0;
+    for (final w in widths) {
+      c.drawRect(Rect.fromLTWH(x, top, w * unit, h), w == 1 ? whole : cut);
+      x += w * unit + g;
+    }
+    final arrow = Paint()
+      ..color = colors.onSurface
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final y = top - 6;
+    void head(Offset tip, Offset dir) {
+      final n = Offset(-dir.dy, dir.dx);
+      c.drawLine(tip, tip - dir * 4 + n * 3, arrow);
+      c.drawLine(tip, tip - dir * 4 - n * 3, arrow);
+    }
+
+    void vertical(double x) {
+      c.drawLine(Offset(x, 0), Offset(x, y), arrow);
+      head(down ? Offset(x, y) : Offset(x, 0), Offset(0, down ? 1 : -1));
+    }
+
+    switch (align) {
+      case TileAlign.left:
+        c.drawLine(Offset(2, y), Offset(size.width * 0.6, y), arrow);
+        head(Offset(size.width * 0.6, y), const Offset(1, 0));
+        vertical(2);
+      case TileAlign.right:
+        c.drawLine(Offset(size.width - 2, y), Offset(size.width * 0.4, y), arrow);
+        head(Offset(size.width * 0.4, y), const Offset(-1, 0));
+        vertical(size.width - 2);
+      case TileAlign.center:
+        c.drawLine(Offset(size.width / 2, y), Offset(size.width * 0.15, y), arrow);
+        head(Offset(size.width * 0.15, y), const Offset(-1, 0));
+        c.drawLine(Offset(size.width / 2, y), Offset(size.width * 0.85, y), arrow);
+        head(Offset(size.width * 0.85, y), const Offset(1, 0));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant AlignIconPainter old) => old.align != align || old.colors != colors || old.down != down;
+}

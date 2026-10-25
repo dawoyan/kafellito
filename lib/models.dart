@@ -68,6 +68,46 @@ class Tile {
   );
 }
 
+/// A set of tiles laid together: one for walls, one for the floor and an
+/// optional decor band across the walls, starting near [decorHeightCm].
+class TileCollection {
+  String id;
+  String name;
+  String? wallTileId;
+  String? floorTileId;
+  String? decorTileId;
+  double decorHeightCm;
+
+  TileCollection({
+    String? id,
+    this.name = '',
+    this.wallTileId,
+    this.floorTileId,
+    this.decorTileId,
+    this.decorHeightCm = 120,
+  }) : id = id ?? newId();
+
+  Iterable<String> get tileIds => [?wallTileId, ?floorTileId, ?decorTileId];
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    if (wallTileId != null) 'wall': wallTileId,
+    if (floorTileId != null) 'floor': floorTileId,
+    if (decorTileId != null) 'decor': decorTileId,
+    'decorH': decorHeightCm,
+  };
+
+  factory TileCollection.fromJson(Map<String, dynamic> j) => TileCollection(
+    id: j['id'] as String,
+    name: j['name'] as String? ?? '',
+    wallTileId: j['wall'] as String?,
+    floorTileId: j['floor'] as String?,
+    decorTileId: j['decor'] as String?,
+    decorHeightCm: _d(j['decorH'], 120),
+  );
+}
+
 String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 String fmtNum(double v) => _fmt(v);
 
@@ -82,6 +122,13 @@ String tileIdOfKey(String key) => key.split('|').first;
   return (gapMm: parts.length > 1 ? double.tryParse(parts[1]) ?? 0 : 0, rotated: parts.length > 2 && parts[2] == '1');
 }
 
+/// Where whole tiles start across a surface, as seen from inside the room:
+/// from the left corner, from the right corner, or centred with equal cut
+/// pieces at both ends. Walls always start with whole tiles at the floor.
+enum TileAlign { left, right, center }
+
+TileAlign _align(dynamic v) => TileAlign.values.asNameMap()[v] ?? TileAlign.center;
+
 /// A polygon drawn on a surface that is covered with its own tile.
 /// [gapMm] overrides the room's tile gap when set.
 class Region {
@@ -90,9 +137,20 @@ class Region {
   String tileId;
   double? gapMm;
   bool rotated;
+  TileAlign align;
 
-  Region({String? id, required this.points, required this.tileId, this.gapMm, this.rotated = false})
-    : id = id ?? newId();
+  /// Set on the decor band a tile collection adds, so re-applying replaces it.
+  bool decor;
+
+  Region({
+    String? id,
+    required this.points,
+    required this.tileId,
+    this.gapMm,
+    this.rotated = false,
+    this.align = TileAlign.center,
+    this.decor = false,
+  }) : id = id ?? newId();
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -100,6 +158,8 @@ class Region {
     'tile': tileId,
     if (gapMm != null) 'gap': gapMm,
     if (rotated) 'rot': true,
+    'align': align.name,
+    if (decor) 'decor': true,
   };
 
   factory Region.fromJson(Map<String, dynamic> j) => Region(
@@ -108,9 +168,11 @@ class Region {
     tileId: j['tile'] as String,
     gapMm: (j['gap'] as num?)?.toDouble(),
     rotated: j['rot'] as bool? ?? false,
+    align: _align(j['align']),
+    decor: j['decor'] as bool? ?? false,
   );
 
-  Region copy() => Region(id: id, points: List.of(points), tileId: tileId, gapMm: gapMm, rotated: rotated);
+  Region copy() => Region.fromJson(toJson());
 }
 
 enum OpeningType { door, window }
@@ -147,9 +209,11 @@ class SurfaceTiling {
   String? tileId;
   double? gapMm;
   bool rotated;
+  TileAlign align;
   List<Region> regions;
 
-  SurfaceTiling({this.tileId, this.gapMm, this.rotated = false, List<Region>? regions}) : regions = regions ?? [];
+  SurfaceTiling({this.tileId, this.gapMm, this.rotated = false, this.align = TileAlign.center, List<Region>? regions})
+    : regions = regions ?? [];
 
   bool get isTiled => tileId != null || regions.isNotEmpty;
 
@@ -157,6 +221,7 @@ class SurfaceTiling {
     if (tileId != null) 'tile': tileId,
     if (gapMm != null) 'gap': gapMm,
     if (rotated) 'rot': true,
+    'align': align.name,
     'regions': regions.map((r) => r.toJson()).toList(),
   };
 
@@ -166,6 +231,7 @@ class SurfaceTiling {
           tileId: j['tile'] as String?,
           gapMm: (j['gap'] as num?)?.toDouble(),
           rotated: j['rot'] as bool? ?? false,
+          align: _align(j['align']),
           regions: ((j['regions'] as List?) ?? []).map((e) => Region.fromJson(e as Map<String, dynamic>)).toList(),
         );
 
@@ -322,6 +388,12 @@ class Project {
   double wastePct;
   DateTime updated;
 
+  /// Collection applied when the plan is closed, and offered again later.
+  String? collectionId;
+
+  /// The room as it was before a tile try-out started; null when not trying.
+  String? trialBase;
+
   Project({
     String? id,
     this.name = 'Bathroom',
@@ -333,6 +405,8 @@ class Project {
     this.groutMm = 2,
     this.wastePct = 10,
     DateTime? updated,
+    this.collectionId,
+    this.trialBase,
   }) : id = id ?? newId(),
        points = points ?? [],
        walls = walls ?? [],
@@ -369,6 +443,8 @@ class Project {
     'grout': groutMm,
     'waste': wastePct,
     'updated': updated.toIso8601String(),
+    if (collectionId != null) 'collection': collectionId,
+    if (trialBase != null) 'trial': trialBase,
   };
 
   factory Project.fromJson(Map<String, dynamic> j) => Project(
@@ -382,6 +458,8 @@ class Project {
     groutMm: _d(j['grout'], 2),
     wastePct: _d(j['waste'], 10),
     updated: DateTime.tryParse(j['updated'] as String? ?? ''),
+    collectionId: j['collection'] as String?,
+    trialBase: j['trial'] as String?,
   );
 
   Project clone() => Project.fromJson(toJson());
