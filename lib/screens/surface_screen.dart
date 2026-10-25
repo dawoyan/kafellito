@@ -201,13 +201,21 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
   // ---- gestures ----
 
   Future<void> _finishRegion(List<Offset> pts) async {
-    final tileId = await showRegionDialog(context, tiling.regions.lastOrNull?.tileId, canDelete: false);
+    final last = tiling.regions.lastOrNull;
+    final choice = await showRegionDialog(
+      context,
+      p,
+      model,
+      last == null ? LayoutChoice() : LayoutChoice.ofRegion(last),
+      newPoints: pts,
+    );
     setState(() {
       _draft.clear();
       _draftRect = null;
     });
-    if (tileId == null || tileId.isEmpty) return;
-    final r = Region(points: pts, tileId: tileId);
+    if (choice?.tileId == null) return;
+    final r = Region(points: pts, tileId: choice!.tileId!);
+    choice.applyToRegion(r);
     _change(() {
       tiling.regions.add(r);
       _selRegion = r.id;
@@ -262,13 +270,19 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
     }
     final reg = _hitRegion(s);
     if (reg != null) {
-      final r = await showRegionDialog(context, reg.tileId);
+      final r = await showRegionDialog(
+        context,
+        p,
+        model,
+        LayoutChoice.ofRegion(reg),
+        index: tiling.regions.indexOf(reg),
+      );
       if (r == null) return;
       _change(() {
-        if (r.isEmpty) {
+        if (r.tileId == null) {
           tiling.regions.remove(reg);
         } else {
-          reg.tileId = r;
+          r.applyToRegion(reg);
         }
       });
       return;
@@ -277,24 +291,8 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
   }
 
   Future<void> _editBase() async {
-    String? tile = tiling.tileId;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, setState) => AlertDialog(
-          title: Text(isWall ? tr('Tiles for the whole wall') : tr('Tiles for the whole floor')),
-          content: SizedBox(
-            width: 360,
-            child: TilePicker(value: tile, onChanged: (v) => setState(() => tile = v)),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Cancel'))),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Save'))),
-          ],
-        ),
-      ),
-    );
-    if (ok == true) _change(() => tiling.tileId = tile);
+    final choice = await showBaseTileDialog(context, p, model);
+    if (choice != null) _change(() => choice.applyToBase(tiling));
   }
 
   void _onScaleStart(ScaleStartDetails d) {
@@ -633,7 +631,6 @@ class _SurfacePainter extends CustomPainter {
       canvas,
       store,
       model,
-      s.p.groutMm,
       plain: isWall ? const Color(0xFFF4EFE6) : const Color(0xFFE6E2DA),
       flipY: isWall,
     );

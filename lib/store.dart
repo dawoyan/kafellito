@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'i18n.dart';
 import 'models.dart';
 import 'storage.dart';
+import 'surfaces.dart';
 
 /// A repeating image of one tile plus its grout, used to paint surfaces.
 class TileTexture {
@@ -162,11 +163,13 @@ class AppStore extends ChangeNotifier {
       tiles.add(t);
     }
     _photos.remove(t.id);
+    _counts.clear();
     changed();
   }
 
   void deleteTile(String id) {
     tiles.removeWhere((t) => t.id == id);
+    _counts.clear();
     for (final p in projects) {
       if (p.floor.tileId == id) p.floor.tileId = null;
       p.floor.regions.removeWhere((r) => r.tileId == id);
@@ -194,24 +197,40 @@ class AppStore extends ChangeNotifier {
     changed();
   }
 
-  /// Returns the texture for [tileId], building it in the background when
+  /// Tile of a layout key (see [layoutKey]) or a plain tile id.
+  Tile? tileOfKey(String key) => tile(tileIdOfKey(key));
+
+  /// Returns the texture for a layout key, building it in the background when
   /// missing. Listeners are notified once it is ready.
-  TileTexture? texture(String tileId, double groutMm) {
-    final t = tile(tileId);
+  TileTexture? texture(String key) {
+    final t = tileOfKey(key);
     if (t == null) return null;
-    final key = '${t.widthCm}|${t.heightCm}|${t.colorValue}|${t.imageBase64?.length}|$groutMm';
-    final tex = _textures[tileId];
-    if (tex != null && _textureKeys[tileId] == key) return tex;
-    if (!_building.contains('$tileId$key')) {
-      _building.add('$tileId$key');
-      _buildTexture(t, groutMm).then((value) {
-        _textures[tileId] = value;
-        _textureKeys[tileId] = key;
-        _building.remove('$tileId$key');
+    final l = layoutOfKey(key);
+    final sig = '${t.widthCm}|${t.heightCm}|${t.colorValue}|${t.imageBase64?.length}';
+    final tex = _textures[key];
+    if (tex != null && _textureKeys[key] == sig) return tex;
+    if (!_building.contains('$key$sig')) {
+      _building.add('$key$sig');
+      _buildTexture(t, l.gapMm, l.rotated).then((value) {
+        _textures[key] = value;
+        _textureKeys[key] = sig;
+        _building.remove('$key$sig');
         notifyListeners();
       });
     }
     return tex;
+  }
+
+  final Map<String, (int, Map<String, TileCount>)> _counts = {};
+
+  /// Tile counts for [p], cached until the room or the tile library changes.
+  Map<String, TileCount> countsFor(Project p) {
+    final stamp = p.updated.microsecondsSinceEpoch;
+    final c = _counts[p.id];
+    if (c != null && c.$1 == stamp) return c.$2;
+    final r = countTiles(p, tileMap);
+    _counts[p.id] = (stamp, r);
+    return r;
   }
 
   Future<ui.Image?> photo(Tile t) async {
@@ -224,12 +243,13 @@ class AppStore extends ChangeNotifier {
     return img;
   }
 
-  Future<TileTexture> _buildTexture(Tile t, double groutMm) async {
+  Future<TileTexture> _buildTexture(Tile t, double groutMm, bool rotated) async {
     final g = math.max(groutMm / 10, 0.0);
-    final ppc = math.min(10.0, 256 / math.max(t.widthCm, t.heightCm));
-    final wpx = ((t.widthCm + g) * ppc).round().clamp(2, 1024);
-    final hpx = ((t.heightCm + g) * ppc).round().clamp(2, 1024);
-    final realPpcX = wpx / (t.widthCm + g);
+    final tw = rotated ? t.heightCm : t.widthCm, th = rotated ? t.widthCm : t.heightCm;
+    final ppc = math.min(10.0, 256 / math.max(tw, th));
+    final wpx = ((tw + g) * ppc).round().clamp(2, 1024);
+    final hpx = ((th + g) * ppc).round().clamp(2, 1024);
+    final realPpcX = wpx / (tw + g);
     final rec = ui.PictureRecorder();
     final c = ui.Canvas(rec);
     final gpx = g * ppc;
@@ -237,12 +257,21 @@ class AppStore extends ChangeNotifier {
     final inner = ui.Rect.fromLTWH(gpx / 2, gpx / 2, wpx - gpx, hpx - gpx);
     final photo = await this.photo(t);
     if (photo != null) {
+      c.save();
+      var dst = inner;
+      if (rotated) {
+        // Turn the photo with the tile so its pattern follows the new direction.
+        c.translate(inner.center.dx, inner.center.dy);
+        c.rotate(math.pi / 2);
+        dst = ui.Rect.fromCenter(center: ui.Offset.zero, width: inner.height, height: inner.width);
+      }
       c.drawImageRect(
         photo,
         ui.Rect.fromLTWH(0, 0, photo.width.toDouble(), photo.height.toDouble()),
-        inner,
+        dst,
         ui.Paint()..filterQuality = ui.FilterQuality.medium,
       );
+      c.restore();
     } else {
       final base = t.color;
       c.drawRect(inner, ui.Paint()..color = base);

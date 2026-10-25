@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../geometry.dart';
 import '../models.dart';
 import '../store.dart';
 import '../surfaces.dart';
@@ -19,16 +18,9 @@ class MeasurementsView extends StatelessWidget {
     if (!p.closed || p.points.length < 3) {
       return Center(child: Text(tr('Finish the room plan to see measurements.')));
     }
-    final counts = countTiles(p, store.tileMap).values.toList()..sort((a, b) => a.tile.name.compareTo(b.tile.name));
+    final counts = store.countsFor(p).values.toList()..sort((a, b) => a.tile.name.compareTo(b.tile.name));
     final theme = Theme.of(context);
-    final floorArea = polygonArea(p.points) / 10000;
-    var wallArea = 0.0;
-    for (var i = 0; i < p.edgeCount; i++) {
-      wallArea += p.wallLength(i) * p.walls[i].height / 10000;
-      for (final o in p.walls[i].openings) {
-        wallArea -= o.width * o.height / 10000;
-      }
-    }
+    final floorArea = floorAreaM2(p), wallArea = wallAreaM2(p);
 
     return ListView(
       padding: const EdgeInsets.all(16),

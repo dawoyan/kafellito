@@ -71,20 +71,46 @@ class Tile {
 String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 String fmtNum(double v) => _fmt(v);
 
+/// Identifies one way of laying a tile: which tile, the gap and whether it is
+/// turned by 90°. Used as the key for textures and tile counts.
+String layoutKey(String tileId, double gapMm, bool rotated) => '$tileId|${_fmt(gapMm)}|${rotated ? 1 : 0}';
+
+String tileIdOfKey(String key) => key.split('|').first;
+
+({double gapMm, bool rotated}) layoutOfKey(String key) {
+  final parts = key.split('|');
+  return (gapMm: parts.length > 1 ? double.tryParse(parts[1]) ?? 0 : 0, rotated: parts.length > 2 && parts[2] == '1');
+}
+
 /// A polygon drawn on a surface that is covered with its own tile.
+/// [gapMm] overrides the room's tile gap when set.
 class Region {
   String id;
   List<Offset> points;
   String tileId;
+  double? gapMm;
+  bool rotated;
 
-  Region({String? id, required this.points, required this.tileId}) : id = id ?? newId();
+  Region({String? id, required this.points, required this.tileId, this.gapMm, this.rotated = false})
+    : id = id ?? newId();
 
-  Map<String, dynamic> toJson() => {'id': id, 'pts': points.map(_pt).toList(), 'tile': tileId};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'pts': points.map(_pt).toList(),
+    'tile': tileId,
+    if (gapMm != null) 'gap': gapMm,
+    if (rotated) 'rot': true,
+  };
 
-  factory Region.fromJson(Map<String, dynamic> j) =>
-      Region(id: j['id'] as String, points: (j['pts'] as List).map(_off).toList(), tileId: j['tile'] as String);
+  factory Region.fromJson(Map<String, dynamic> j) => Region(
+    id: j['id'] as String,
+    points: (j['pts'] as List).map(_off).toList(),
+    tileId: j['tile'] as String,
+    gapMm: (j['gap'] as num?)?.toDouble(),
+    rotated: j['rot'] as bool? ?? false,
+  );
 
-  Region copy() => Region(id: id, points: List.of(points), tileId: tileId);
+  Region copy() => Region(id: id, points: List.of(points), tileId: tileId, gapMm: gapMm, rotated: rotated);
 }
 
 enum OpeningType { door, window }
@@ -116,16 +142,21 @@ class Opening {
 }
 
 /// Tiling of one surface: an optional base tile plus regions with other tiles.
+/// [gapMm] overrides the room's tile gap for the base tile when set.
 class SurfaceTiling {
   String? tileId;
+  double? gapMm;
+  bool rotated;
   List<Region> regions;
 
-  SurfaceTiling({this.tileId, List<Region>? regions}) : regions = regions ?? [];
+  SurfaceTiling({this.tileId, this.gapMm, this.rotated = false, List<Region>? regions}) : regions = regions ?? [];
 
   bool get isTiled => tileId != null || regions.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
     if (tileId != null) 'tile': tileId,
+    if (gapMm != null) 'gap': gapMm,
+    if (rotated) 'rot': true,
     'regions': regions.map((r) => r.toJson()).toList(),
   };
 
@@ -133,8 +164,12 @@ class SurfaceTiling {
       ? SurfaceTiling()
       : SurfaceTiling(
           tileId: j['tile'] as String?,
+          gapMm: (j['gap'] as num?)?.toDouble(),
+          rotated: j['rot'] as bool? ?? false,
           regions: ((j['regions'] as List?) ?? []).map((e) => Region.fromJson(e as Map<String, dynamic>)).toList(),
         );
+
+  SurfaceTiling copy() => SurfaceTiling.fromJson(toJson());
 }
 
 /// Wall i runs from room point i to point i+1.

@@ -233,28 +233,28 @@ class PlanEditorState extends State<PlanEditor> {
     }
     final e = _hitEdge(s);
     if (e >= 0) {
-      final r = await showWallDialog(context, e, p.wallLength(e), p.walls[e]);
+      final r = await showWallDialog(context, p, e);
       if (r == null) return;
       _change(() {
         if ((r.length - p.wallLength(e)).abs() > 0.05) {
           p.points = setEdgeLength(p.points, e, r.length, closed: p.closed);
         }
         p.walls[e].height = r.height;
-        p.walls[e].tiling.tileId = r.tileId;
+        r.layout.applyToBase(p.walls[e].tiling);
       });
       if (r.openWall) widget.openWall(e);
       return;
     }
     if (p.closed && pointInPolygon(toPlan(s), p.points)) {
       final b = boundsOf(p.points);
-      final r = await showFloorDialog(context, b.size, p.floor.tileId);
+      final r = await showFloorDialog(context, p, b.size);
       if (r == null) return;
       _change(() {
         final sx = b.width == 0 ? 1.0 : r.width / b.width, sy = b.height == 0 ? 1.0 : r.height / b.height;
         if ((sx - 1).abs() > 1e-4 || (sy - 1).abs() > 1e-4) {
           p.points = [for (final q in p.points) Offset(b.left + (q.dx - b.left) * sx, b.top + (q.dy - b.top) * sy)];
         }
-        p.floor.tileId = r.tileId;
+        r.layout.applyToBase(p.floor);
       });
       if (r.openFloor) widget.openFloor();
     }
@@ -473,7 +473,7 @@ class _PlanPainter extends CustomPainter {
     canvas.translate(pan.dx, pan.dy);
     canvas.scale(scale);
     if (p.closed && pts.length >= 3) {
-      paintSurface(canvas, store, SurfaceModel.floor(p), p.groutMm, plain: const Color(0xFFE6E2DA));
+      paintSurface(canvas, store, SurfaceModel.floor(p), plain: const Color(0xFFE6E2DA));
     }
     for (final f in p.fixtures) {
       paintFixturePlan(canvas, f, selected: f.id == selectedFixture, strokeScale: 1 / scale);

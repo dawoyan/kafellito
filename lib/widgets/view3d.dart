@@ -392,7 +392,7 @@ class _Room3DViewState extends State<Room3DView> {
                   if (!_inside) _placeOrbit();
                 });
               },
-              child: CustomPaint(painter: _RoomPainter(_mesh!, _cam, store, p.groutMm)),
+              child: CustomPaint(painter: _RoomPainter(_mesh!, _cam, store)),
             ),
           ),
         ),
@@ -482,8 +482,7 @@ class _RoomPainter extends CustomPainter {
   final _RoomMesh mesh;
   final _Camera cam;
   final AppStore store;
-  final double groutMm;
-  _RoomPainter(this.mesh, this.cam, this.store, this.groutMm);
+  _RoomPainter(this.mesh, this.cam, this.store);
 
   static const _near = 2.0;
 
@@ -544,9 +543,9 @@ class _RoomPainter extends CustomPainter {
         if (v.length < 3) continue;
         final b = bufs.putIfAbsent(q.key, () => _Buf());
         final pts = v.map(proj).toList();
-        final tex = store.tile(q.key) == null ? null : store.texture(q.key, groutMm);
+        final tex = store.texture(q.key);
         final ppc = tex?.ppc ?? 1;
-        final tile = store.tile(q.key);
+        final tile = store.tileOfKey(q.key);
         final base = q.key == _ceilingKey
             ? const Color(0xFFFAFAF8)
             : q.key == _doorKey
@@ -572,7 +571,7 @@ class _RoomPainter extends CustomPainter {
       }
       bufs.forEach((key, b) {
         if (b.pos.isEmpty) return;
-        final tex = store.tile(key) == null ? null : store.texture(key, groutMm);
+        final tex = store.texture(key);
         final vertices = ui.Vertices.raw(
           ui.VertexMode.triangles,
           Float32List.fromList(b.pos),

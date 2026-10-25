@@ -55,6 +55,10 @@ const _ru = <String, String>{
   'No tiles yet. Tap + to photograph one.': 'Плитки пока нет. Нажмите «Новая плитка», чтобы сфотографировать.',
   'Plan not finished': 'План не завершён',
   '{n} walls · {area} m² floor': 'Стен: {n} · пол {area} м²',
+  'Floor {f} · walls {w} · total {t} {m2}': 'Пол {f} · стены {w} · всего {t} {m2}',
+  'Floor {f} · walls {w} {m2}': 'Пол {f} · стены {w} {m2}',
+  'Total {t} {m2} · tiled {a} {m2}': 'Всего {t} {m2} · под плитку {a} {m2}',
+  'All rooms': 'Все комнаты',
   'Settings': 'Настройки',
   'Language': 'Язык',
   'Default tile gap for new rooms': 'Шов между плиткой для новых комнат',
@@ -132,6 +136,8 @@ const _ru = <String, String>{
   'From wall start': 'От начала стены',
   'Tiles for this area': 'Плитка для участка',
   'Delete area': 'Удалить участок',
+  'Tile direction': 'Направление плитки',
+  '{full} whole + {cut} cut, {p}% extra · {area} m²': '{full} целых + {cut} подрезанных, запас {p}% · {area} м²',
 
   // Fixtures
   'Sink': 'Раковина',

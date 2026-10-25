@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../geometry.dart';
 import '../models.dart';
 import '../store.dart';
+import '../surfaces.dart';
 import '../widgets/common.dart';
 import 'project_screen.dart';
 import 'settings_screen.dart';
@@ -97,22 +98,27 @@ class _RoomList extends StatelessWidget {
     final store = AppScope.of(context);
     final rooms = [...store.projects]..sort((a, b) => b.updated.compareTo(a.updated));
     if (rooms.isEmpty) return Center(child: Text(tr('No rooms yet. Tap New room to draw one.')));
+    final m2 = tr('m²');
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      itemCount: rooms.length,
+      itemCount: rooms.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
-        final p = rooms[i];
-        final area = p.closed && p.points.length >= 3 ? polygonArea(p.points) / 10000 : 0.0;
+        if (i == 0) return _Totals(rooms);
+        final p = rooms[i - 1];
+        final floor = floorAreaM2(p), walls = wallAreaM2(p);
+        final tiled = store.countsFor(p).values.fold(0.0, (a, c) => a + c.areaCm2) / 10000;
         return Card(
           child: ListTile(
             leading: SizedBox(width: 56, height: 56, child: CustomPaint(painter: _Thumb(p))),
             title: Text(p.name),
             subtitle: Text(
               p.closed
-                  ? tr('{n} walls · {area} m² floor', {'n': p.points.length, 'area': area.toStringAsFixed(2)})
+                  ? '${tr('Floor {f} · walls {w} {m2}', {'f': floor.toStringAsFixed(2), 'w': walls.toStringAsFixed(2), 'm2': m2})}\n'
+                        '${tr('Total {t} {m2} · tiled {a} {m2}', {'t': (floor + walls).toStringAsFixed(2), 'a': tiled.toStringAsFixed(2), 'm2': m2})}'
                   : tr('Plan not finished'),
             ),
+            isThreeLine: p.closed,
             trailing: PopupMenuButton<String>(
               onSelected: (v) async {
                 if (v == 'delete' && await confirm(context, 'Delete ${p.name}?', 'This cannot be undone.')) {
@@ -133,6 +139,87 @@ class _RoomList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Area and tiles to buy per tile type, summed over all rooms.
+class _Totals extends StatelessWidget {
+  final List<Project> rooms;
+  const _Totals(this.rooms);
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context);
+    final theme = Theme.of(context);
+    final m2 = tr('m²');
+    final area = <String, double>{}, pieces = <String, int>{};
+    final tiles = <String, Tile>{};
+    var floor = 0.0, walls = 0.0;
+    for (final p in rooms) {
+      floor += floorAreaM2(p);
+      walls += wallAreaM2(p);
+      for (final c in store.countsFor(p).values) {
+        tiles[c.tile.id] = c.tile;
+        area[c.tile.id] = (area[c.tile.id] ?? 0) + c.areaCm2 / 10000;
+        pieces[c.tile.id] = (pieces[c.tile.id] ?? 0) + c.withWaste(p.wastePct);
+      }
+    }
+    final ids = tiles.keys.toList()..sort((a, b) => tiles[a]!.name.compareTo(tiles[b]!.name));
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('All rooms'), style: theme.textTheme.titleMedium),
+            gap(4),
+            Text(
+              tr('Floor {f} · walls {w} · total {t} {m2}', {
+                'f': floor.toStringAsFixed(2),
+                'w': walls.toStringAsFixed(2),
+                't': (floor + walls).toStringAsFixed(2),
+                'm2': m2,
+              }),
+              style: theme.textTheme.bodySmall,
+            ),
+            if (ids.isNotEmpty) const Divider(height: 20),
+            for (final id in ids)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    TileSwatch(tiles[id], size: 32),
+                    gap(),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(tiles[id]!.label, overflow: TextOverflow.ellipsis),
+                          Text('${area[id]!.toStringAsFixed(2)} $m2', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          tr('{n} pcs', {'n': pieces[id]}),
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        if (boxesFor(tiles[id]!, pieces[id]!) case final b?)
+                          Text(
+                            '$b ${plural(b, tr('box'), tr('boxes2'), tr('boxes'))}',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

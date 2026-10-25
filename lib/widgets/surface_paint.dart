@@ -6,10 +6,10 @@ import '../surfaces.dart';
 /// Paint that fills with the repeating tile texture. The canvas is expected to
 /// be in surface centimetres. Walls have y pointing up, so their texture is
 /// flipped to keep photos upright.
-Paint? tilePaint(AppStore store, String tileId, double groutMm, Offset origin, {bool flipY = false}) {
-  final tex = store.texture(tileId, groutMm);
+Paint? tilePaint(AppStore store, String key, Offset origin, {bool flipY = false}) {
+  final tex = store.texture(key);
   if (tex == null) {
-    final t = store.tile(tileId);
+    final t = store.tileOfKey(key);
     return t == null ? null : (Paint()..color = t.color);
   }
   final m = Matrix4.identity()
@@ -24,8 +24,7 @@ Paint? tilePaint(AppStore store, String tileId, double groutMm, Offset origin, {
 void paintSurface(
   Canvas c,
   AppStore store,
-  SurfaceModel s,
-  double groutMm, {
+  SurfaceModel s, {
   required Color plain,
   bool flipY = false,
   Color holeColor = Colors.white,
@@ -33,12 +32,12 @@ void paintSurface(
   final basePath = Path()..addPolygon(s.base, true);
   c.save();
   c.clipPath(basePath);
-  final baseTile = s.tiling.tileId;
-  final bp = baseTile == null ? null : tilePaint(store, baseTile, groutMm, s.origin, flipY: flipY);
+  final bp = s.tiling.tileId == null ? null : tilePaint(store, s.keyOfLayer(-1), s.origin, flipY: flipY);
   c.drawPath(basePath, bp ?? (Paint()..color = plain));
-  for (final r in s.tiling.regions) {
+  for (var i = 0; i < s.tiling.regions.length; i++) {
+    final r = s.tiling.regions[i];
     if (r.points.length < 3) continue;
-    final p = tilePaint(store, r.tileId, groutMm, s.origin, flipY: flipY);
+    final p = tilePaint(store, s.keyOfLayer(i), s.origin, flipY: flipY);
     if (p != null) c.drawPath(Path()..addPolygon(r.points, true), p);
   }
   for (final h in s.holes) {
