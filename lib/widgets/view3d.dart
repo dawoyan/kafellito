@@ -73,7 +73,8 @@ class _RoomMesh {
         return _w(a + dir * q.dx, q.dy);
       }
 
-      Offset uvOf(Offset q) => s.isFloor ? q - s.origin : Offset(q.dx, -q.dy);
+      // Mirrored walls run right to left from inside; flip u so photos read correctly.
+      Offset uvOf(Offset q) => s.isFloor ? q - s.origin : Offset(s.mirrored ? -q.dx : q.dx, -q.dy);
 
       void cell(Rect r, int depth) {
         final samples = <String?>[];

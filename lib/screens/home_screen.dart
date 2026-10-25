@@ -98,122 +98,110 @@ class _RoomList extends StatelessWidget {
     final store = AppScope.of(context);
     final rooms = [...store.projects]..sort((a, b) => b.updated.compareTo(a.updated));
     if (rooms.isEmpty) return Center(child: Text(tr('No rooms yet. Tap New room to draw one.')));
-    final m2 = tr('m²');
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      itemCount: rooms.length + 1,
+      itemCount: rooms.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        if (i == 0) return _Totals(rooms);
-        final p = rooms[i - 1];
-        final floor = floorAreaM2(p), walls = wallAreaM2(p);
-        final tiled = store.countsFor(p).values.fold(0.0, (a, c) => a + c.areaCm2) / 10000;
-        return Card(
-          child: ListTile(
-            leading: SizedBox(width: 56, height: 56, child: CustomPaint(painter: _Thumb(p))),
-            title: Text(p.name),
-            subtitle: Text(
-              p.closed
-                  ? '${tr('Floor {f} · walls {w} {m2}', {'f': floor.toStringAsFixed(2), 'w': walls.toStringAsFixed(2), 'm2': m2})}\n'
-                        '${tr('Total {t} {m2} · tiled {a} {m2}', {'t': (floor + walls).toStringAsFixed(2), 'a': tiled.toStringAsFixed(2), 'm2': m2})}'
-                  : tr('Plan not finished'),
-            ),
-            isThreeLine: p.closed,
-            trailing: PopupMenuButton<String>(
-              onSelected: (v) async {
-                if (v == 'delete' && await confirm(context, 'Delete ${p.name}?', 'This cannot be undone.')) {
-                  store.deleteProject(p.id);
-                } else if (v == 'copy') {
-                  final c = p.clone()
-                    ..id = newId()
-                    ..name = tr('{name} copy', {'name': p.name});
-                  store.upsertProject(c);
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'copy', child: Text(tr('Duplicate'))),
-                PopupMenuItem(value: 'delete', child: Text(tr('Delete'))),
-              ],
-            ),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProjectScreen(projectId: p.id))),
-          ),
-        );
-      },
+      itemBuilder: (context, i) => _RoomCard(rooms[i]),
     );
   }
 }
 
-/// Area and tiles to buy per tile type, summed over all rooms.
-class _Totals extends StatelessWidget {
-  final List<Project> rooms;
-  const _Totals(this.rooms);
+/// A room with its areas and the tiles it needs.
+class _RoomCard extends StatelessWidget {
+  final Project p;
+  const _RoomCard(this.p);
 
   @override
   Widget build(BuildContext context) {
     final store = AppScope.of(context);
     final theme = Theme.of(context);
     final m2 = tr('m²');
-    final area = <String, double>{}, pieces = <String, int>{};
-    final tiles = <String, Tile>{};
-    var floor = 0.0, walls = 0.0;
-    for (final p in rooms) {
-      floor += floorAreaM2(p);
-      walls += wallAreaM2(p);
-      for (final c in store.countsFor(p).values) {
-        tiles[c.tile.id] = c.tile;
-        area[c.tile.id] = (area[c.tile.id] ?? 0) + c.areaCm2 / 10000;
-        pieces[c.tile.id] = (pieces[c.tile.id] ?? 0) + c.withWaste(p.wastePct);
-      }
-    }
-    final ids = tiles.keys.toList()..sort((a, b) => tiles[a]!.name.compareTo(tiles[b]!.name));
+    final floor = floorAreaM2(p), walls = wallAreaM2(p);
+    final counts = store.countsFor(p).values.toList()..sort((a, b) => a.tile.name.compareTo(b.tile.name));
+    final tiled = counts.fold(0.0, (a, c) => a + c.areaCm2) / 10000;
+    void open() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProjectScreen(projectId: p.id)));
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: open,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(tr('All rooms'), style: theme.textTheme.titleMedium),
-            gap(4),
-            Text(
-              tr('Floor {f} · walls {w} · total {t} {m2}', {
-                'f': floor.toStringAsFixed(2),
-                'w': walls.toStringAsFixed(2),
-                't': (floor + walls).toStringAsFixed(2),
-                'm2': m2,
-              }),
-              style: theme.textTheme.bodySmall,
+            ListTile(
+              leading: SizedBox(width: 56, height: 56, child: CustomPaint(painter: _Thumb(p))),
+              title: Text(p.name),
+              subtitle: Text(
+                p.closed
+                    ? '${tr('Floor {f} · walls {w} {m2}', {'f': floor.toStringAsFixed(2), 'w': walls.toStringAsFixed(2), 'm2': m2})}\n'
+                          '${tr('Total {t} {m2} · tiled {a} {m2}', {'t': (floor + walls).toStringAsFixed(2), 'a': tiled.toStringAsFixed(2), 'm2': m2})}'
+                    : tr('Plan not finished'),
+              ),
+              isThreeLine: p.closed,
+              trailing: PopupMenuButton<String>(
+                onSelected: (v) async {
+                  if (v == 'delete' &&
+                      await confirm(context, tr('Delete {name}?', {'name': p.name}), tr('This cannot be undone.'))) {
+                    store.deleteProject(p.id);
+                  } else if (v == 'copy') {
+                    final c = p.clone()
+                      ..id = newId()
+                      ..name = tr('{name} copy', {'name': p.name});
+                    store.upsertProject(c);
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'copy', child: Text(tr('Duplicate'))),
+                  PopupMenuItem(value: 'delete', child: Text(tr('Delete'))),
+                ],
+              ),
             ),
-            if (ids.isNotEmpty) const Divider(height: 20),
-            for (final id in ids)
+            if (counts.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Column(
                   children: [
-                    TileSwatch(tiles[id], size: 32),
-                    gap(),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tiles[id]!.label, overflow: TextOverflow.ellipsis),
-                          Text('${area[id]!.toStringAsFixed(2)} $m2', style: theme.textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          tr('{n} pcs', {'n': pieces[id]}),
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    const Divider(height: 8),
+                    for (final c in counts)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          children: [
+                            TileSwatch(c.tile, size: 26),
+                            gap(10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    c.tile.label,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                  Text(
+                                    '${(c.areaCm2 / 10000).toStringAsFixed(2)} $m2',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  tr('{n} pcs', {'n': c.withWaste(p.wastePct)}),
+                                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                if (c.boxes(p.wastePct) case final b?)
+                                  Text(
+                                    '$b ${plural(b, tr('box'), tr('boxes2'), tr('boxes'))}',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ],
                         ),
-                        if (boxesFor(tiles[id]!, pieces[id]!) case final b?)
-                          Text(
-                            '$b ${plural(b, tr('box'), tr('boxes2'), tr('boxes'))}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),

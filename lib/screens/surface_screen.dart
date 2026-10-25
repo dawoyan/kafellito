@@ -64,10 +64,13 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
   SurfaceModel get model => isWall ? SurfaceModel.wall(p, _wall!) : SurfaceModel.floor(p);
   SurfaceTiling get tiling => isWall ? p.walls[_wall!].tiling : p.floor;
 
-  Offset toScreen(Offset c) => _pan + Offset(c.dx, isWall ? -c.dy : c.dy) * _scale;
+  /// -1 when the wall is drawn flipped so it reads as seen from inside.
+  double get _sx => isWall && wallMirrored(p, _wall!) ? -1 : 1;
+
+  Offset toScreen(Offset c) => _pan + Offset(c.dx * _sx, isWall ? -c.dy : c.dy) * _scale;
   Offset toSurf(Offset s) {
     final q = (s - _pan) / _scale;
-    return Offset(q.dx, isWall ? -q.dy : q.dy);
+    return Offset(q.dx * _sx, isWall ? -q.dy : q.dy);
   }
 
   void _fit() {
@@ -77,7 +80,7 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
     _scale = math.min(avail.width / math.max(b.width, 1), avail.height / math.max(b.height, 1)).clamp(0.05, 30.0);
     final center = Offset(_size.width / 2, (_size.height - 60) / 2);
     final bc = b.center;
-    _pan = center - Offset(bc.dx, isWall ? -bc.dy : bc.dy) * _scale;
+    _pan = center - Offset(bc.dx * _sx, isWall ? -bc.dy : bc.dy) * _scale;
     setState(() {});
   }
 
@@ -249,7 +252,7 @@ class _SurfaceScreenState extends State<SurfaceScreen> {
     final o = _hitOpening(s);
     if (o != null) {
       widget.beforeChange();
-      final r = await showOpeningDialog(context, o);
+      final r = await showOpeningDialog(context, o, p.wallLength(_wall!), mirrored: _sx < 0);
       if (r == 'delete') p.walls[_wall!].openings.remove(o);
       if (r != null) {
         widget.onChanged();
@@ -626,13 +629,14 @@ class _SurfacePainter extends CustomPainter {
 
     canvas.save();
     canvas.translate(s._pan.dx, s._pan.dy);
-    canvas.scale(scale, isWall ? -scale : scale);
+    canvas.scale(scale * s._sx, isWall ? -scale : scale);
     paintSurface(
       canvas,
       store,
       model,
       plain: isWall ? const Color(0xFFF4EFE6) : const Color(0xFFE6E2DA),
       flipY: isWall,
+      flipX: s._sx < 0,
     );
     canvas.drawPath(
       Path()..addPolygon(model.base, true),
@@ -754,7 +758,8 @@ class _SurfacePainter extends CustomPainter {
         '${fmtNum((b.width * 10).roundToDouble() / 10)} ${tr('cm')}',
         s.toScreen(Offset(b.center.dx, 0)) + const Offset(0, 16),
       );
-      _text(canvas, '${fmtNum(b.height)} ${tr('cm')}', s.toScreen(Offset(0, b.center.dy)) - const Offset(30, 0));
+      final left = s._sx < 0 ? b.right : b.left;
+      _text(canvas, '${fmtNum(b.height)} ${tr('cm')}', s.toScreen(Offset(left, b.center.dy)) - const Offset(30, 0));
     } else {
       _text(
         canvas,

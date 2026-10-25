@@ -31,4 +31,14 @@ void main() {
     expect(j.walls[0].tiling.rotated, true);
     expect(j.walls[0].tiling.gapMm, 5);
   });
+
+  test('walls read from inside whichever way the room was drawn', () {
+    const pts = [Offset(0, 0), Offset(300, 0), Offset(300, 200), Offset(0, 200)];
+    final cw = Project(points: pts, closed: true);
+    final ccw = Project(points: pts.reversed.toList(), closed: true);
+    for (var i = 0; i < 4; i++) {
+      expect(wallMirrored(cw, i), false);
+      expect(wallMirrored(ccw, i), true);
+    }
+  });
 }

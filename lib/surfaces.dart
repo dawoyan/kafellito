@@ -22,6 +22,10 @@ class SurfaceModel {
   /// The room's tile gap, used where the tiling sets none.
   final double defaultGapMm;
 
+  /// True when a wall seen from inside the room runs from its end (left) to
+  /// its start (right), so views must flip x to show it from inside.
+  final bool mirrored;
+
   SurfaceModel({
     required this.name,
     required this.base,
@@ -30,6 +34,7 @@ class SurfaceModel {
     this.origin = Offset.zero,
     this.wallIndex,
     this.defaultGapMm = 2,
+    this.mirrored = false,
   });
 
   bool get isFloor => wallIndex == null;
@@ -43,6 +48,7 @@ class SurfaceModel {
     origin: origin,
     wallIndex: wallIndex,
     defaultGapMm: defaultGapMm,
+    mirrored: mirrored,
   );
 
   /// Layer at [p]: -1 for the base, a region index, or null outside or in a hole.
@@ -94,6 +100,7 @@ class SurfaceModel {
       holes: w.openings.map((o) => o.rect).toList(),
       wallIndex: i,
       defaultGapMm: p.groutMm,
+      mirrored: wallMirrored(p, i),
     );
   }
 
@@ -101,6 +108,16 @@ class SurfaceModel {
     if (p.closed && p.points.length >= 3) floor(p),
     for (var i = 0; i < p.edgeCount; i++) wall(p, i),
   ];
+}
+
+/// Whether wall [i] runs right to left when seen from inside the room.
+bool wallMirrored(Project p, int i) {
+  if (!p.closed || p.points.length < 3 || p.wallLength(i) == 0) return false;
+  final dir = p.wallEnd(i) - p.wallStart(i);
+  final n = inwardNormal(p.points, i);
+  // Facing the wall from inside means looking along -n; on the y-down plan
+  // the viewer's right is then (n.dy, -n.dx).
+  return dir.dx * n.dy - dir.dy * n.dx < 0;
 }
 
 class TileCount {

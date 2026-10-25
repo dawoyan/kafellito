@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'models.dart';
@@ -8,8 +10,17 @@ IconData fixtureIcon(FixtureType t) => switch (t) {
   FixtureType.shower => Icons.shower,
   FixtureType.bathtub => Icons.bathtub,
   FixtureType.washer => Icons.local_laundry_service,
-  FixtureType.cabinet => Icons.kitchen,
+  FixtureType.cabinet => Icons.shelves,
   FixtureType.mirror => Icons.crop_portrait,
+  FixtureType.fridge => Icons.kitchen,
+  FixtureType.stove => Icons.soup_kitchen,
+  FixtureType.dishwasher => Icons.local_dining,
+  FixtureType.counter => Icons.countertops,
+  FixtureType.table => Icons.table_restaurant,
+  FixtureType.chair => Icons.chair_alt,
+  FixtureType.sofa => Icons.weekend,
+  FixtureType.bed => Icons.bed,
+  FixtureType.wardrobe => Icons.door_sliding,
 };
 
 /// Box in the fixture's local frame: x across, y from back (-d/2) to front,
@@ -24,6 +35,11 @@ const _white = Color(0xFFF7F7F5);
 const _chrome = Color(0xFFB8BEC4);
 const _wood = Color(0xFF9C7350);
 const _glass = Color(0x5594C4D8);
+const _dark = Color(0xFF2E3338);
+const _steel = Color(0xFFDADDE0);
+const _stone = Color(0xFFB9B4AA);
+const _fabric = Color(0xFF7D8A96);
+const _linen = Color(0xFFF1EEE6);
 
 /// Simple placeholder 3D model of a fixture.
 List<Box3> fixtureBoxes(Fixture f) {
@@ -69,6 +85,64 @@ List<Box3> fixtureBoxes(Fixture f) {
       ];
     case FixtureType.mirror:
       return [Box3(-w, w, -d, d, e, e + h, const Color(0xFFCFE3EC))];
+    case FixtureType.fridge:
+      return [
+        Box3(-w, w, -d, d, 0, h, _steel),
+        Box3(-w, w, d, d + 0.5, h * 0.62, h * 0.63, _dark),
+        Box3(w - 6, w - 4, d, d + 3, h * 0.66, h * 0.85, _chrome),
+        Box3(w - 6, w - 4, d, d + 3, h * 0.35, h * 0.58, _chrome),
+      ];
+    case FixtureType.stove:
+      return [
+        Box3(-w, w, -d, d, 0, h - 3, _white),
+        Box3(-w, w, -d, d, h - 3, h, _dark),
+        Box3(-w * 0.8, w * 0.8, d, d + 0.5, h * 0.12, h * 0.68, const Color(0xFF3A4048)),
+        Box3(-w * 0.7, w * 0.7, d, d + 3, h * 0.72, h * 0.75, _chrome),
+      ];
+    case FixtureType.dishwasher:
+      return [Box3(-w, w, -d, d, 0, h, _white), Box3(-w, w, d, d + 0.5, h - 12, h - 2, const Color(0xFFB0B6BC))];
+    case FixtureType.counter:
+      return [
+        Box3(-w, w, -d, d - 3, 10, h - 4, _wood),
+        Box3(-w, w, -d, d - 6, 0, 10, const Color(0xFF5A4433)),
+        Box3(-w, w, -d, d, h - 4, h, _stone),
+      ];
+    case FixtureType.table:
+      return [
+        Box3(-w, w, -d, d, h - 4, h, _wood),
+        for (final (x, y) in [(-w + 3, -d + 3), (w - 3, -d + 3), (-w + 3, d - 3), (w - 3, d - 3)])
+          Box3(x - 2.5, x + 2.5, y - 2.5, y + 2.5, 0, h - 4, const Color(0xFF6E4F35)),
+      ];
+    case FixtureType.chair:
+      return [
+        Box3(-w, w, -d + 4, d, 42, 46, _wood),
+        Box3(-w, w, -d, -d + 4, 46, h, _wood),
+        for (final (x, y) in [(-w + 2, -d + 2), (w - 2, -d + 2), (-w + 2, d - 2), (w - 2, d - 2)])
+          Box3(x - 1.5, x + 1.5, y - 1.5, y + 1.5, 0, 42, const Color(0xFF6E4F35)),
+      ];
+    case FixtureType.sofa:
+      return [
+        Box3(-w, w, -d, d, 8, 42, _fabric),
+        Box3(-w, w, -d, -d + 22, 42, h, _fabric),
+        Box3(-w, -w + 18, -d, d, 42, 62, _fabric),
+        Box3(w - 18, w, -d, d, 42, 62, _fabric),
+        Box3(-w + 2, w - 2, -d + 2, d - 2, 0, 8, _dark),
+      ];
+    case FixtureType.bed:
+      return [
+        Box3(-w, w, -d, d, 0, 30, _wood),
+        Box3(-w + 2, w - 2, -d + 4, d - 2, 30, h, _linen),
+        Box3(-w, w, -d, -d + 5, 0, 100, _wood),
+        Box3(-w + 10, -2, -d + 8, -d + 48, h, h + 10, Colors.white),
+        Box3(2, w - 10, -d + 8, -d + 48, h, h + 10, Colors.white),
+      ];
+    case FixtureType.wardrobe:
+      return [
+        Box3(-w, w, -d, d, 0, h, _wood),
+        Box3(-0.5, 0.5, d, d + 0.5, 2, h - 2, const Color(0xFF6E4F35)),
+        Box3(-5, -3, d, d + 3, h * 0.45, h * 0.6, _chrome),
+        Box3(3, 5, d, d + 3, h * 0.45, h * 0.6, _chrome),
+      ];
   }
 }
 
@@ -126,6 +200,50 @@ void paintFixturePlan(Canvas c, Fixture f, {bool selected = false, double stroke
       c.drawLine(outer.topLeft, outer.bottomRight, soft);
     case FixtureType.mirror:
       c.drawRect(outer.inflate(1), Paint()..color = const Color(0xFF90CAF9));
+    case FixtureType.fridge:
+      c.drawRect(outer, fill);
+      c.drawRect(outer, line);
+      c.drawLine(Offset(-w, d - 6), Offset(w, d - 6), soft);
+      c.drawLine(outer.topLeft, Offset(w, d - 6), soft);
+    case FixtureType.stove:
+      c.drawRect(outer, fill);
+      c.drawRect(outer, line);
+      for (final (x, y) in [(-0.45, -0.4), (0.45, -0.4), (-0.45, 0.4), (0.45, 0.4)]) {
+        c.drawCircle(Offset(x * w, y * d), math.min(w, d) * 0.3, soft);
+      }
+    case FixtureType.dishwasher:
+      c.drawRect(outer, fill);
+      c.drawRect(outer, line);
+      c.drawRect(Rect.fromLTRB(-w + 6, -d + 6, w - 6, d - 6), soft);
+    case FixtureType.counter:
+      c.drawRect(outer, Paint()..color = const Color(0xFFEDEAE3));
+      c.drawRect(outer, line);
+      c.drawLine(Offset(-w, d - 4), Offset(w, d - 4), soft);
+    case FixtureType.table:
+      final r = RRect.fromRectAndRadius(outer, const Radius.circular(4));
+      c.drawRRect(r, Paint()..color = const Color(0xFFF3ECE2));
+      c.drawRRect(r, line);
+    case FixtureType.chair:
+      c.drawRect(outer, fill);
+      c.drawRect(outer, line);
+      c.drawRect(Rect.fromLTRB(-w, -d, w, -d + 5), Paint()..color = const Color(0xFF78909C));
+    case FixtureType.sofa:
+      final r = RRect.fromRectAndRadius(outer, const Radius.circular(6));
+      c.drawRRect(r, fill);
+      c.drawRRect(r, line);
+      c.drawRect(Rect.fromLTRB(-w, -d, w, -d + 22), soft);
+      c.drawRect(Rect.fromLTRB(-w, -d + 22, -w + 18, d), soft);
+      c.drawRect(Rect.fromLTRB(w - 18, -d + 22, w, d), soft);
+    case FixtureType.bed:
+      c.drawRect(outer, fill);
+      c.drawRect(outer, line);
+      c.drawRRect(RRect.fromLTRBR(-w + 10, -d + 8, -3, -d + 45, const Radius.circular(5)), soft);
+      c.drawRRect(RRect.fromLTRBR(3, -d + 8, w - 10, -d + 45, const Radius.circular(5)), soft);
+      c.drawLine(Offset(-w, -d + 55), Offset(w, -d + 55), soft);
+    case FixtureType.wardrobe:
+      c.drawRect(outer, Paint()..color = const Color(0x22000000));
+      c.drawRect(outer, line);
+      c.drawLine(Offset(0, -d), Offset(0, d), soft);
   }
   c.restore();
 }

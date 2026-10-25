@@ -20,7 +20,7 @@ String plural(int n, String one, String few, String many) {
 }
 
 /// English forms for plural keys that only exist to pick the right Russian form.
-const _en = <String, String>{'boxes2': 'boxes', 'openings2': 'openings', 'areas2': 'areas'};
+const _en = <String, String>{'boxes2': 'boxes', 'openings2': 'openings', 'areas2': 'areas', 'rooms2': 'rooms'};
 
 const _ru = <String, String>{
   'box': 'коробка',
@@ -55,10 +55,8 @@ const _ru = <String, String>{
   'No tiles yet. Tap + to photograph one.': 'Плитки пока нет. Нажмите «Новая плитка», чтобы сфотографировать.',
   'Plan not finished': 'План не завершён',
   '{n} walls · {area} m² floor': 'Стен: {n} · пол {area} м²',
-  'Floor {f} · walls {w} · total {t} {m2}': 'Пол {f} · стены {w} · всего {t} {m2}',
   'Floor {f} · walls {w} {m2}': 'Пол {f} · стены {w} {m2}',
   'Total {t} {m2} · tiled {a} {m2}': 'Всего {t} {m2} · под плитку {a} {m2}',
-  'All rooms': 'Все комнаты',
   'Settings': 'Настройки',
   'Language': 'Язык',
   'Default tile gap for new rooms': 'Шов между плиткой для новых комнат',
@@ -70,6 +68,18 @@ const _ru = <String, String>{
   // Tile editor
   'Edit tile': 'Изменить плитку',
   'Delete tile?': 'Удалить плитку?',
+  'Used in {n}': 'Используется: {n}',
+  'Remove it from these rooms to change or delete it, or change a copy instead.':
+      'Чтобы изменить или удалить плитку, уберите её из этих комнат или измените копию.',
+  'Remove {tile} from {room}?': 'Убрать «{tile}» из «{room}»?',
+  'Walls and floor with this tile become untiled and its drawn areas are deleted.':
+      'Стены и пол с этой плиткой останутся без плитки, а её участки будут удалены.',
+  'Copy and edit': 'Копировать и изменить',
+  'Edit': 'Изменить',
+  'Not used in any room now.': 'Сейчас не используется ни в одной комнате.',
+  'room': 'комната',
+  'rooms2': 'комнаты',
+  'rooms': 'комнат',
   'It will be removed from every room that uses it.': 'Она будет убрана из всех комнат, где используется.',
   'Take photo': 'Сфотографировать',
   'Gallery': 'Галерея',
@@ -106,7 +116,7 @@ const _ru = <String, String>{
       'Двойное нажатие на угол, стену, пол или сантехнику — изменить. Долгое нажатие на стену — добавить угол.',
   'Remove point': 'Убрать точку',
   'Close room': 'Замкнуть',
-  'Add fixture': 'Сантехника',
+  'Add fixture': 'Мебель и техника',
   'Floor': 'Пол',
   'Reopen plan': 'Изменить план',
   'Fit to screen': 'По размеру экрана',
@@ -147,6 +157,16 @@ const _ru = <String, String>{
   'Washing machine': 'Стиральная машина',
   'Cabinet': 'Шкафчик',
   'Mirror': 'Зеркало',
+  'Fridge': 'Холодильник',
+  'Stove with oven': 'Плита с духовкой',
+  'Dishwasher': 'Посудомоечная машина',
+  'Kitchen counter': 'Кухонная тумба',
+  'Table': 'Стол',
+  'Chair': 'Стул',
+  'Sofa': 'Диван',
+  'Bed': 'Кровать',
+  'Wardrobe': 'Шкаф',
+  'From left corner': 'От левого угла',
 
   // Wall / floor editor
   'Previous wall': 'Предыдущая стена',
@@ -163,7 +183,7 @@ const _ru = <String, String>{
   'Rectangle': 'Прямоугольник',
   'Shape': 'Фигура',
   'Undo point': 'Убрать точку',
-  'Fixture': 'Сантехника',
+  'Fixture': 'Мебель',
 
   // 3D
   'Finish the room plan to see it in 3D.': 'Завершите план комнаты, чтобы увидеть 3D.',

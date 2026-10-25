@@ -276,8 +276,9 @@ Future<String?> showFixtureDialog(BuildContext context, Fixture f) {
 Future<FixtureType?> pickFixtureType(BuildContext context, IconData Function(FixtureType) icon) {
   return showModalBottomSheet<FixtureType>(
     context: context,
+    isScrollControlled: true,
     builder: (c) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Wrap(
           spacing: 12,
@@ -309,9 +310,11 @@ Future<FixtureType?> pickFixtureType(BuildContext context, IconData Function(Fix
   );
 }
 
-/// Returns 'delete', 'save' or null. Edits [o] in place on save.
-Future<String?> showOpeningDialog(BuildContext context, Opening o) {
-  final x = numCtrl(o.x), y = numCtrl(o.y), w = numCtrl(o.width), h = numCtrl(o.height);
+/// Returns 'delete', 'save' or null. Edits [o] in place on save. Positions are
+/// shown as seen from inside the room; [mirrored] walls run right to left.
+Future<String?> showOpeningDialog(BuildContext context, Opening o, double wallLength, {bool mirrored = false}) {
+  final x = numCtrl(mirrored ? wallLength - o.x - o.width : o.x);
+  final y = numCtrl(o.y), w = numCtrl(o.width), h = numCtrl(o.height);
   var type = o.type;
   return showDialog<String>(
     context: context,
@@ -350,7 +353,7 @@ Future<String?> showOpeningDialog(BuildContext context, Opening o) {
               gap(),
               Row(
                 children: [
-                  Expanded(child: NumberField(x, tr('From wall start'))),
+                  Expanded(child: NumberField(x, tr('From left corner'))),
                   gap(),
                   Expanded(child: NumberField(y, tr('From floor'))),
                 ],
@@ -363,11 +366,13 @@ Future<String?> showOpeningDialog(BuildContext context, Opening o) {
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
+              final width = parseNum(w.text) ?? o.width;
+              final left = parseNum(x.text) ?? (mirrored ? wallLength - o.x - o.width : o.x);
               o
                 ..type = type
-                ..x = parseNum(x.text) ?? o.x
+                ..x = mirrored ? wallLength - left - width : left
                 ..y = parseNum(y.text) ?? o.y
-                ..width = parseNum(w.text) ?? o.width
+                ..width = width
                 ..height = parseNum(h.text) ?? o.height;
               Navigator.pop(c, 'save');
             },

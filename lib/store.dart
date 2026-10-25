@@ -171,14 +171,33 @@ class AppStore extends ChangeNotifier {
     tiles.removeWhere((t) => t.id == id);
     _counts.clear();
     for (final p in projects) {
-      if (p.floor.tileId == id) p.floor.tileId = null;
-      p.floor.regions.removeWhere((r) => r.tileId == id);
-      for (final w in p.walls) {
-        if (w.tiling.tileId == id) w.tiling.tileId = null;
-        w.tiling.regions.removeWhere((r) => r.tileId == id);
-      }
+      _strip(p, id);
     }
     changed();
+  }
+
+  /// Rooms that use [tileId] on a wall, the floor or a drawn area.
+  List<Project> roomsUsing(String tileId) => projects.where((p) {
+    bool uses(SurfaceTiling t) => t.tileId == tileId || t.regions.any((r) => r.tileId == tileId);
+    return uses(p.floor) || p.walls.any((w) => uses(w.tiling));
+  }).toList();
+
+  /// Takes [tileId] off every surface of [p] and deletes its drawn areas.
+  void removeTileFromRoom(Project p, String tileId) {
+    _strip(p, tileId);
+    upsertProject(p);
+  }
+
+  void _strip(Project p, String id) {
+    for (final t in [p.floor, ...p.walls.map((w) => w.tiling)]) {
+      if (t.tileId == id) {
+        t
+          ..tileId = null
+          ..gapMm = null
+          ..rotated = false;
+      }
+      t.regions.removeWhere((r) => r.tileId == id);
+    }
   }
 
   void upsertProject(Project p) {

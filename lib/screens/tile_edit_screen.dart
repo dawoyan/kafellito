@@ -26,9 +26,11 @@ const _swatches = [
 ];
 
 /// Creates or edits a library tile. Pops with the saved tile.
+/// With [copy] set, [tile] is a new unsaved copy rather than a library tile.
 class TileEditScreen extends StatefulWidget {
   final Tile? tile;
-  const TileEditScreen({super.key, this.tile});
+  final bool copy;
+  const TileEditScreen({super.key, this.tile, this.copy = false});
 
   @override
   State<TileEditScreen> createState() => _TileEditScreenState();
@@ -88,9 +90,9 @@ class _TileEditScreenState extends State<TileEditScreen> {
     final bytes = tileBytes(_t);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.tile == null ? tr('New tile') : tr('Edit tile')),
+        title: Text(widget.tile == null || widget.copy ? tr('New tile') : tr('Edit tile')),
         actions: [
-          if (widget.tile != null)
+          if (widget.tile != null && !widget.copy)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () async {

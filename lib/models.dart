@@ -195,7 +195,24 @@ class Wall {
   );
 }
 
-enum FixtureType { sink, toilet, shower, bathtub, washer, cabinet, mirror }
+enum FixtureType {
+  sink,
+  toilet,
+  shower,
+  bathtub,
+  washer,
+  cabinet,
+  mirror,
+  fridge,
+  stove,
+  dishwasher,
+  counter,
+  table,
+  chair,
+  sofa,
+  bed,
+  wardrobe,
+}
 
 class FixtureSpec {
   final String label;
@@ -212,6 +229,15 @@ const fixtureSpecs = {
   FixtureType.washer: FixtureSpec('Washing machine', 60, 60, 85),
   FixtureType.cabinet: FixtureSpec('Cabinet', 80, 40, 60, 110),
   FixtureType.mirror: FixtureSpec('Mirror', 60, 3, 80, 110),
+  FixtureType.fridge: FixtureSpec('Fridge', 60, 65, 185),
+  FixtureType.stove: FixtureSpec('Stove with oven', 60, 60, 85),
+  FixtureType.dishwasher: FixtureSpec('Dishwasher', 60, 60, 85),
+  FixtureType.counter: FixtureSpec('Kitchen counter', 120, 60, 90),
+  FixtureType.table: FixtureSpec('Table', 120, 80, 75),
+  FixtureType.chair: FixtureSpec('Chair', 45, 50, 90),
+  FixtureType.sofa: FixtureSpec('Sofa', 200, 90, 85),
+  FixtureType.bed: FixtureSpec('Bed', 160, 200, 50),
+  FixtureType.wardrobe: FixtureSpec('Wardrobe', 120, 60, 220),
 };
 
 /// A sink, shower etc. Position is the footprint centre in plan coordinates.
